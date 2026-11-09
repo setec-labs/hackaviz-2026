@@ -1,11 +1,9 @@
 [project]
 name = "hackaviz-2026"
 version = "0.1.0"
-description = "Add your description here"
+description = "Projet Hackaviz Mobilités 2026 : cartographier les trajets du quotidien et explorer les liens entre temps de parcours, accessibilité et sentiment de sécurité."
 readme = "README.md"
-authors = [
-    { name = "Florian Dufour", email = "florian.dufour@setec.com" }
-]
+authors = [{ name = "Florian Dufour", email = "florian.dufour@setec.com" }]
 requires-python = ">=3.14"
 dependencies = []
 
@@ -15,3 +13,6 @@ hackaviz-2026 = "hackaviz_2026:main"
 [build-system]
 requires = ["uv_build>=0.13.7,<0.14.0"]
 build-backend = "uv_build"
+
+[tool.uv.workspace]
+members = ["frontend", "services/routing", "services/safety"]
