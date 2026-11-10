@@ -50,13 +50,48 @@ Depuis la racine :
 uv run --package safety <commande>
 ```
 
-Dans le cas d'une API FastAPI :
-
 ```powershell
 uv run --package safety uvicorn safety.main:app --reload
 ```
 
-Adaptez le chemin du module à la structure réelle du service.
+La documentation interactive est disponible sur `http://localhost:8000/docs`.
+
+## API des indicateurs
+
+- `GET /indicators` retourne les métadonnées des indicateurs disponibles.
+- `POST /evaluate` reçoit `{"position": {"latitude": 48.8566, "longitude": 2.3522}}`
+  et retourne la position et les résultats de tous les indicateurs.
+- `POST /score` reçoit une position et une liste `weights` contenant des objets
+  `{"indicator_id": "lighting", "weight": 1.0}`. Il retourne la position,
+  les résultats des indicateurs demandés et leur moyenne pondérée.
+
+Tous les résultats et le score global sont compris entre 0 et 1 : 0 représente
+la situation la moins favorable et 1 la plus favorable. Ces indicateurs ne
+constituent pas une preuve objective de danger. Les coordonnées sont exprimées
+en WGS84 (EPSG:4326).
+
+Les poids doivent être finis et positifs ou nuls ; au moins un doit être
+strictement positif. Les identifiants doivent être uniques et connus. Un
+indicateur associé à un poids nul est tout de même évalué et inclus dans la
+réponse. Les entrées invalides produisent une réponse HTTP 422 et les
+identifiants inconnus une réponse HTTP 400.
+
+L'indicateur `lighting` est déclaré mais pas encore implémenté : son évaluation
+retourne une erreur HTTP 501, jamais une valeur fictive. Son implémentation
+future devra transformer les coordonnées WGS84 vers le CRS du GeoTIFF si
+nécessaire, localiser le pixel, lire sa valeur brute et appliquer une
+normalisation propre à l'indicateur. La lecture raster, la transformation de
+coordonnées et la stratégie de normalisation ne sont pas encore implémentées.
+
+Cette API ne fournit pas encore la route batch `/safety-index` attendue par le
+client frontend provisoire ; le frontend doit continuer à utiliser ses mocks
+jusqu'à l'alignement des contrats.
+
+## Tests
+
+```powershell
+uv run --package safety python -m unittest discover -s services\safety\tests -v
+```
 
 ## Modèles de données communs
 
