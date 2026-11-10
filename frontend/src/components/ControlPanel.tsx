@@ -4,6 +4,7 @@ import type { SimulationClock } from "../simulation/SimulationClock";
 import { SPEED_PRESETS } from "../simulation/speedPresets";
 import { useClockSnapshot } from "../simulation/useClockSnapshot";
 import { formatSimulatedDate, formatSimulatedTime } from "./format";
+import { SoundOptions } from "./SoundOptions";
 
 interface ControlPanelProps {
   clock: SimulationClock;
@@ -150,6 +151,7 @@ export function ControlPanel({ clock, dataset }: ControlPanelProps) {
           );
         })}
       </fieldset>
+      <SoundOptions />
     </section>
   );
 }

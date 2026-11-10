@@ -32,6 +32,15 @@ describe("generateMockTripsResponse", () => {
     expect(durations.size).toBeGreaterThan(10);
   });
 
+  it("starts the default simulation on November 10 at 22:00 Paris time", () => {
+    const trips = parseTripsResponse(generateMockTripsResponse({ origin, tripCount: 30, seed: 7 }));
+    const start = Date.parse("2026-11-10T22:00:00+01:00");
+    for (const trip of trips) {
+      expect(trip.startTimeMs).toBeGreaterThanOrEqual(start);
+      expect(trip.startTimeMs).toBeLessThan(start + 90 * 60_000);
+    }
+  });
+
   it("supports an empty result and large volumes", () => {
     expect(generateMockTripsResponse({ origin, tripCount: 0, seed: 1 }).trips).toEqual([]);
     expect(generateMockTripsResponse({ origin, tripCount: 3000, seed: 1 }).trips).toHaveLength(3000);

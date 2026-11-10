@@ -3,12 +3,12 @@ import { ContractError, parseSafetyIndexResponse, parseTripsResponse } from "./v
 
 const validTrip = {
   trip_id: "t1",
-  start_time: "2026-11-13T22:00:00+01:00",
-  end_time: "2026-11-13T22:10:00+01:00",
+  start_time: "2026-11-10T22:00:00+01:00",
+  end_time: "2026-11-10T22:10:00+01:00",
   mode: "walk",
   points: [
-    { latitude: 48.86, longitude: 2.35, timestamp: "2026-11-13T22:00:00+01:00" },
-    { latitude: 48.87, longitude: 2.36, timestamp: "2026-11-13T22:10:00+01:00" },
+    { latitude: 48.86, longitude: 2.35, timestamp: "2026-11-10T22:00:00+01:00" },
+    { latitude: 48.87, longitude: 2.36, timestamp: "2026-11-10T22:10:00+01:00" },
   ],
 };
 
@@ -39,7 +39,7 @@ describe("parseTripsResponse", () => {
     ["missing id", { trips: [{ ...validTrip, trip_id: "" }] }],
     ["single point", { trips: [{ ...validTrip, points: validTrip.points.slice(0, 1) }] }],
     ["invalid timestamp", { trips: [{ ...validTrip, start_time: "tonight" }] }],
-    ["end before start", { trips: [{ ...validTrip, end_time: "2026-11-13T21:00:00+01:00" }] }],
+    ["end before start", { trips: [{ ...validTrip, end_time: "2026-11-10T21:00:00+01:00" }] }],
     [
       "invalid latitude",
       { trips: [{ ...validTrip, points: [{ ...validTrip.points[0], latitude: 120 }, validTrip.points[1]] }] },

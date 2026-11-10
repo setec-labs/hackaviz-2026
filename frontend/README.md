@@ -82,6 +82,9 @@ Le nombre de trajets par défaut peut aussi être défini avec `VITE_MOCK_TRIP_C
   (temps réel = 3 600 s, normale = 60 s, rapide = 10 s, très rapide = 1 s). Modifiable pendant l'animation.
 - **Clic sur la carte** : choisit un nouveau point de départ et recharge les trajets.
 - **Survol** d'un trajet ou d'un point : infobulle avec le mode, les horaires et l'indicateur au point courant.
+- **Options → ambiance sonore** : active ou coupe la boucle fournie et règle son volume (30 % par défaut,
+  0 % pour couper le son). Aucun son ni téléchargement audio au démarrage ; la lecture démarre uniquement
+  sur demande et reste indépendante de la pause et de la vitesse de simulation.
 
 ## Architecture
 
@@ -106,7 +109,8 @@ frontend/
     ├── simulation/            # horloge de simulation commune + préréglages de vitesse
     ├── layers/                # couches deck.gl, positions courantes, infobulle
     ├── map/                   # carte MapLibre + overlay deck.gl, thème du fond de carte
-    └── components/            # composants UI (panneau de contrôle, légende, états)
+    ├── components/            # composants UI (panneau de contrôle, légende, états, options sonores)
+    └── assets/                # boucle sonore locale (ambient-loop.wav)
 ```
 
 ### Flux de données
@@ -146,7 +150,7 @@ l'indice appartient au service `services/safety`.
 Toutes les données simulées sont dans [`src/mocks/`](src/mocks/) :
 
 - `tripGenerator.ts` : génère une réponse au format de l'API trajets (trajets autour du point de départ vers
-  des pôles d'Île-de-France, modes et vitesses variés, départs étalés à partir du 13/11/2026 22:00) ;
+  des pôles d'Île-de-France, modes et vitesses variés, départs étalés à partir du 10/11/2026 22:00) ;
 - `safetyField.ts` : champ synthétique d'indice (zones aléatoires, quelques zones sans donnée) ;
 - `mockClients.ts` : `MockTripsClient` et `MockSafetyIndexClient`, qui implémentent les mêmes interfaces que
   les clients HTTP et passent par le **même validateur** que les réponses réelles.

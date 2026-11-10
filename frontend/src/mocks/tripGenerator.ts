@@ -65,8 +65,8 @@ export interface MockTripOptions {
   departureWindowMinutes?: number;
 }
 
-/** Nuit du vendredi 13 au samedi 14 novembre 2026, 22h00 heure de Paris. */
-export const DEFAULT_NIGHT_START_MS = Date.parse("2026-11-13T22:00:00+01:00");
+/** Nuit du mardi 10 au mercredi 11 novembre 2026, 22h00 heure de Paris. */
+export const DEFAULT_NIGHT_START_MS = Date.parse("2026-11-10T22:00:00+01:00");
 
 const KM_PER_DEGREE_LATITUDE = 110.574;
 

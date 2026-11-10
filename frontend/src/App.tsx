@@ -36,7 +36,7 @@ export function App() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      if (event.code !== "Space" || target?.closest("button, input, select, textarea")) return;
+      if (event.code !== "Space" || target?.closest("button, input, select, textarea, summary, a, [contenteditable]")) return;
       event.preventDefault();
       clock.togglePlay();
     };

@@ -5,7 +5,7 @@ import type { Trip } from "../domain/types";
 import { rgba } from "../theme/palette";
 import { findSegment, HeadBuffers } from "./headPositions";
 
-const base = Date.parse("2026-11-13T22:00:00Z");
+const base = Date.parse("2026-11-10T22:00:00Z");
 const trips: Trip[] = [
   {
     id: "a",
