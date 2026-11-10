@@ -82,9 +82,12 @@ Le nombre de trajets par défaut peut aussi être défini avec `VITE_MOCK_TRIP_C
   (temps réel = 3 600 s, normale = 60 s, rapide = 10 s, très rapide = 1 s). Modifiable pendant l'animation.
 - **Clic sur la carte** : choisit un nouveau point de départ et recharge les trajets.
 - **Survol** d'un trajet ou d'un point : infobulle avec le mode, les horaires et l'indicateur au point courant.
-- **Options → ambiance sonore** : active ou coupe la boucle fournie et règle son volume (30 % par défaut,
-  0 % pour couper le son). Aucun son ni téléchargement audio au démarrage ; la lecture démarre uniquement
-  sur demande et reste indépendante de la pause et de la vitesse de simulation.
+- **Contrôleur de simulation** : cliquez sur son titre pour replier ou réafficher le panneau, sans arrêter
+  la simulation ni le son.
+- **Options → ambiance sonore** : boucle de 41 secondes, activée au démarrage à 50 % du volume
+  (0 % pour couper le son), indépendante de la pause et de la vitesse de simulation.
+  Si le navigateur bloque la lecture automatique, « Son en attente » apparaît dans Options :
+  cliquez sur « Activer l'ambiance sonore » pour autoriser la lecture.
 
 ## Architecture
 

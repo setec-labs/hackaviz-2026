@@ -5,17 +5,32 @@ export function SoundOptions() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
-  const [volume, setVolume] = useState(30);
+  const [volume, setVolume] = useState(50);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const audio = audioRef.current;
-    return () => audio?.pause();
-  }, []);
+    if (audio) audio.volume = volume / 100;
+  }, [volume]);
 
   useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = volume / 100;
-  }, [volume]);
+    const audio = audioRef.current;
+    if (!audio) return;
+    let cancelled = false;
+    void audio.play().catch((cause: unknown) => {
+      if (cancelled) return;
+      if (cause instanceof DOMException && cause.name === "NotAllowedError") {
+        setAutoplayBlocked(true);
+      } else {
+        setError("Impossible de lire l'ambiance sonore. Réessayez.");
+      }
+    });
+    return () => {
+      cancelled = true;
+      audio.pause();
+    };
+  }, []);
 
   const toggleSound = async () => {
     const audio = audioRef.current;
@@ -40,15 +55,19 @@ export function SoundOptions() {
   return (
     <details className="mt-2 border-t border-surface-raised pt-2 text-xs">
       <summary className="w-fit cursor-pointer rounded text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-selection">
-        Options
+        Options{autoplayBlocked ? " · Son en attente" : ""}
       </summary>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
         <audio
           ref={audioRef}
           src={ambientLoopUrl}
           loop
-          preload="none"
-          onPlaying={() => setIsPlaying(true)}
+          preload="auto"
+          onPlaying={() => {
+            setIsPlaying(true);
+            setAutoplayBlocked(false);
+            setError(null);
+          }}
           onPause={() => setIsPlaying(false)}
           onError={() => {
             setIsPlaying(false);
@@ -79,7 +98,12 @@ export function SoundOptions() {
           className="w-24 cursor-pointer accent-selection focus-visible:outline-2 focus-visible:outline-selection"
         />
         <span className="w-9 font-mono text-ink-muted tabular-nums" aria-hidden="true">{volume} %</span>
-        <p className="w-full text-ink-muted">Boucle sonore indépendante de la simulation, désactivée au démarrage.</p>
+        <p className="w-full text-ink-muted">Boucle de 41 secondes, indépendante de la simulation.</p>
+        {autoplayBlocked && (
+          <p role="status" className="w-full text-ink-muted">
+            Le navigateur bloque la lecture automatique. Cliquez sur « Activer l'ambiance sonore ».
+          </p>
+        )}
         {error && <p role="alert" className="w-full text-vigilance">{error}</p>}
       </div>
     </details>

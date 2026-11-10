@@ -57,11 +57,15 @@ export function ControlPanel({ clock, dataset }: ControlPanelProps) {
   const progress = duration > 0 ? (snapshot.currentTime - snapshot.startTime) / duration : 0;
 
   return (
-    <section
+    <details
+      open
       aria-label="Contrôle de la simulation"
       className="pointer-events-auto w-full max-w-3xl rounded-2xl border border-surface-raised/70 bg-surface/85 px-4 py-3 text-ink shadow-2xl shadow-night/60 backdrop-blur-md"
     >
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+      <summary className="cursor-pointer rounded text-xs text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-selection">
+        Contrôleur de simulation
+      </summary>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-3">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -152,6 +156,6 @@ export function ControlPanel({ clock, dataset }: ControlPanelProps) {
         })}
       </fieldset>
       <SoundOptions />
-    </section>
+    </details>
   );
 }
