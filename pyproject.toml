@@ -10,7 +10,9 @@ authors = [
     { name = "Benoit Fontanel", email = "benoit.fontanel@setec.com"}
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "pydantic>=2,<3",
+]
 
 [project.scripts]
 hackaviz-2026 = "hackaviz_2026:main"
