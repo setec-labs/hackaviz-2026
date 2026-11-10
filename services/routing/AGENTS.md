@@ -96,6 +96,9 @@ uv run --package routing uvicorn routing.main:app --port 8001 --reload
 
 Les tests utilisent des scenarios synthetiques et des dossiers temporaires :
 ne pas les faire dependre du dossier local `data/` ou d'un fichier Downloads.
+Seule exception : `tests/test_local_data.py` valide le catalogue local
+`data/routing/scenarios/` lorsqu'il existe et est ignore sinon. Le relancer
+apres tout ajout ou modification de scenario.
 Tester les cas nominaux, donnees absentes/invalides, bornes, chronologie,
 geometrie, erreurs de stockage et report non implemente.
 Surcharger `get_routing_service` via `app.dependency_overrides` pour les tests API.

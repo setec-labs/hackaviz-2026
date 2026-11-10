@@ -162,8 +162,10 @@ invalide ne sont jamais ignorés silencieusement : pas de catalogue partiel.
 uv run --package routing python -m unittest discover -s services\routing\tests -v
 ```
 
-Les tests utilisent uniquement des scénarios synthétiques, isolés dans des
-dossiers temporaires, et ne nécessitent pas le fichier téléchargé.
+Les tests utilisent des scénarios synthétiques, isolés dans des dossiers
+temporaires, et ne nécessitent pas le fichier téléchargé. Seul
+`test_local_data.py` valide les scénarios présents dans
+`data/routing/scenarios/` ; il est ignoré si ce dossier n'existe pas.
 
 ## Intégration frontend
 
