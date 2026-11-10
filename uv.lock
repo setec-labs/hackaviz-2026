@@ -241,6 +241,26 @@ wheels = [
 name = "routing"
 version = "0.1.0"
 source = { editable = "services/routing" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "hackaviz-2026" },
+    { name = "uvicorn" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "httpx" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.162.3" },
+    { name = "hackaviz-2026", editable = "." },
+    { name = "uvicorn", specifier = ">=0.54.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "httpx", specifier = ">=0.28.1" }]
 
 [[package]]
 name = "safety"

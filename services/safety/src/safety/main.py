@@ -3,8 +3,8 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 
+from hackaviz_2026.api import ErrorResponse, ValidationErrorResponse, ValidationIssue
 from hackaviz_2026.models import (
     EvaluateRequest,
     EvaluateResponse,
@@ -14,20 +14,6 @@ from hackaviz_2026.models import (
 )
 from safety.providers import LightingIndicatorProvider
 from safety.service import IndicatorNotImplementedError, IndicatorService, UnknownIndicatorError
-
-
-class ErrorResponse(BaseModel):
-    detail: str
-
-
-class ValidationIssue(BaseModel):
-    type: str
-    loc: list[str | int]
-    msg: str
-
-
-class ValidationErrorResponse(BaseModel):
-    detail: list[ValidationIssue]
 
 
 app = FastAPI(
