@@ -3,7 +3,12 @@ name = "hackaviz-2026"
 version = "0.1.0"
 description = "Projet Hackaviz Mobilités 2026 : cartographier les trajets du quotidien et explorer les liens entre temps de parcours, accessibilité et sentiment de sécurité."
 readme = "README.md"
-authors = [{ name = "Florian Dufour", email = "florian.dufour@setec.com" }]
+authors = [
+    { name = "Florian Dufour", email = "florian.dufour@setec.com" },
+    { name = "Victoria Jacob", email = "victoria.jacob@setec.com" },
+    { name = "Simon Lavoine", email = "simon.lavoine@setec.com"},
+    { name = "Benoit Fontanel", email = "benoit.fontanel@setec.com"}
+]
 requires-python = ">=3.14"
 dependencies = [
     "geopandas>=1.2.0",
