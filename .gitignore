@@ -38,7 +38,6 @@ MANIFEST
 *.spec
 
 # heavy data
-./data/
 
 # Installer logs
 pip-log.txt

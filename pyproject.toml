@@ -5,7 +5,12 @@ description = "Projet Hackaviz Mobilités 2026 : cartographier les trajets du qu
 readme = "README.md"
 authors = [{ name = "Florian Dufour", email = "florian.dufour@setec.com" }]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "geopandas>=1.2.0",
+    "pandas>=3.1.1",
+    "pyarrow>=26.0.1",
+    "shapely>=2.2.0",
+]
 
 [project.scripts]
 hackaviz-2026 = "hackaviz_2026:main"
