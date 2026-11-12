@@ -12,6 +12,9 @@ const SIMULATED_POPULATION_MIN = 500;
 const SIMULATED_POPULATION_MAX = 50_000;
 /** Nombre d'arrivees precedentes examinees pour relier une etoile a sa plus proche voisine. */
 const CONSTELLATION_LOOKBACK = 300;
+// Bornes reduites pour rester lisible avec ~1 300 arrivees par scenario.
+const MIN_BUBBLE_RADIUS_PX = 2.5;
+const MAX_BUBBLE_RADIUS_PX = 16;
 
 export interface ArrivalSource {
   id: string;
@@ -122,7 +125,7 @@ export function simulatePopulation(seedText: string): number {
 
 /** Rayon proportionnel a la racine de la population : l'aire de la bulle suit la population. */
 export function populationRadiusPx(population: number): number {
-  return Math.min(22, Math.max(3, 3 + Math.sqrt(population) * 0.07));
+  return Math.min(MAX_BUBBLE_RADIUS_PX, Math.max(MIN_BUBBLE_RADIUS_PX, 2 + Math.sqrt(population) * 0.04));
 }
 
 /** Position relative de la population entre les bornes simulees (0 = petite zone, 1 = grande). */

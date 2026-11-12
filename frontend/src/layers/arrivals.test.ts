@@ -60,9 +60,9 @@ describe("population", () => {
   });
 
   it("grows the bubble area with the population, within bounds", () => {
-    expect(populationRadiusPx(0)).toBe(3);
+    expect(populationRadiusPx(0)).toBe(2.5);
     expect(populationRadiusPx(10_000)).toBeGreaterThan(populationRadiusPx(1_000));
-    expect(populationRadiusPx(10_000_000)).toBe(22);
+    expect(populationRadiusPx(10_000_000)).toBe(16);
     expect(populationScale(500)).toBe(0);
     expect(populationScale(50_000)).toBe(1);
   });

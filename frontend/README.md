@@ -102,8 +102,9 @@ Les valeurs par défaut peuvent aussi être définies avec `VITE_DATA_SOURCE`, `
   cliquez sur « Activer l'ambiance sonore » pour autoriser la lecture.
 - **Bulles d'arrivée (constellation)** : à la fin d'un trajet, une bulle lumineuse apparaît à la
   destination avec un anneau qui s'étend, puis reste affichée avec un halo scintillant. Sa **taille** suit
-  la population de la zone et sa **couleur** l'anxiété maximale sur les 10 dernières minutes du trajet
-  (indicateur le plus bas observé, anxiété = 1 − indicateur). Chaque bulle est reliée à l'arrivée
+  la population de la zone et sa **couleur** l'anxiété des 10 pires minutes du trajet : indicateur moyen
+  le plus bas sur une fenêtre glissante de 10 minutes consécutives, n'importe où sur le trajet
+  (anxiété = 1 − indicateur). Chaque bulle est reliée à l'arrivée
   antérieure la plus proche, ce qui dessine une constellation. Le survol affiche la destination, l'heure,
   la population et l'indicateur.
 - **Options → tintement** : un tintement est joué à chaque apparition de bulle, plus grave pour les zones
@@ -151,6 +152,9 @@ SafetyIndexClient.fetchSafetyIndices(pts) ──────────┘     
 - Si le service **routing** échoue, un message d'erreur avec bouton « Réessayer » est affiché.
 - Si le service **indice** échoue, les trajets restent affichés et l'indicateur est signalé
   « non disponible » (aucune valeur n'est inventée).
+- Les trajets de **plus de 2 h** sont jugés peu plausibles (un taxi aurait sans doute été pris,
+  `src/domain/tripPlausibility.ts`) : pas de requête d'indice, tracé gris neutre atténué, bulle d'arrivée
+  creuse sans halo, mention dans l'infobulle et la légende.
 - L'indice n'est demandé que pour les sommets des tronçons **à pied et d'attente** (`walk*`, `wait`) ;
   les autres tronçons reçoivent la valeur neutre provisoire 0,5 (`src/data/safetySampling.ts`, TODO :
   interroger safety autrement pour ces modes).
@@ -185,8 +189,8 @@ Toutes les données simulées sont dans [`src/mocks/`](src/mocks/) :
   implémentent les mêmes interfaces que
   les clients HTTP et passent par le **même validateur** que les réponses réelles.
 
-Tant que les données ne fournissent pas `destination.population`, la population des bulles d'arrivée est
-simulée de façon déterministe à partir de l'identifiant du trajet (500 à 50 000 habitants, répartition
+Le pipeline routing fournit `destination.population`. À défaut (données simulées), la population des
+bulles d'arrivée est simulée de façon déterministe à partir de l'identifiant du trajet (500 à 50 000 habitants, répartition
 log-uniforme, `src/data/arrivals.ts`) et signalée « (simulée) » dans l'infobulle.
 
 Les données sont déterministes pour une graine donnée et ne sont jamais codées dans les composants React.
