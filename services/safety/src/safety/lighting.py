@@ -16,23 +16,20 @@ from safety.providers import IndicatorDataError, IndicatorUnavailableError
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_LIGHTING_RASTER = Path(__file__).with_name("luminosite.tif")
+DEFAULT_LIGHTING_RASTER = Path(__file__).with_name("luminosite_log.tif")
 
-# luminosite.tif values span exactly [0, 100]; the source does not document their unit.
+# luminosite_log.tif is already on a logarithmic scale (delivered by the victoria branch),
+# with values spanning exactly [0, 100]: a linear rescaling is enough here.
 LIGHTING_RAW_MAX = 100.0
 
 
 def normalize_lighting(raw_value: float) -> float:
-    """Logarithmic normalization log(1 + v) / log(1 + max): 0 = darkest, 1 = brightest.
-
-    Raw values are heavily skewed towards 0 (95 % of pixels below 2.7), so a linear scale
-    would compress almost every place near 0; the log scale spreads the low values.
-    """
+    """Linear normalization of the log-scaled raster value: 0 = darkest, 1 = brightest."""
     if not math.isfinite(raw_value) or not 0.0 <= raw_value <= LIGHTING_RAW_MAX:
         raise IndicatorDataError(
             f"Lighting raw value {raw_value} is outside the expected range [0, {LIGHTING_RAW_MAX:g}]"
         )
-    return math.log1p(raw_value) / math.log1p(LIGHTING_RAW_MAX)
+    return raw_value / LIGHTING_RAW_MAX
 
 
 @dataclass(frozen=True)

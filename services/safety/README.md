@@ -61,7 +61,7 @@ sur `http://localhost:8002/docs`.
 Variables d'environnement :
 
 - `SAFETY_LIGHTING_RASTER` : chemin du raster d'éclairage (par défaut
-  `src/safety/luminosite.tif`) ;
+  `src/safety/luminosite_log.tif`) ;
 - `SAFETY_CORS_ORIGINS` : origines autorisées, séparées par des virgules (par
   défaut `http://localhost:5173,http://127.0.0.1:5173`, le serveur Vite).
 
@@ -95,18 +95,16 @@ indicateur non implémenté et 503 si la donnée source est absente ou illisible
 
 ## Indicateur `lighting`
 
-Source : `src/safety/luminosite.tif`, livré sur la branche `victoria`
-(Lambert 93 / EPSG:2154, maille de 130 m, valeurs brutes de 0 à 100 dont
-l'unité n'est pas documentée).
+Source : `src/safety/luminosite_log.tif`, livré sur la branche `victoria`
+(Lambert 93 / EPSG:2154, maille de 130 m). Ce raster est **déjà en échelle
+logarithmique**, avec des valeurs de 0 à 100 dont l'unité n'est pas documentée.
+`luminosite.tif` (échelle linéaire d'origine) est conservé mais n'est plus utilisé.
 
 Calcul : position WGS84 → reprojection dans le CRS du raster (pyproj) → pixel
-contenant la position → valeur brute (rasterio) → score logarithmique
-`log(1 + valeur) / log(101)`.
+contenant la position → valeur brute (rasterio) → score linéaire `valeur / 100`.
+Aucun logarithme n'est appliqué par le service, pour ne pas l'appliquer deux fois.
 
-La distribution brute est très concentrée vers 0 (médiane 0, 95 % des pixels
-sous 2,7). L'échelle logarithmique étale les faibles valeurs : Châtelet ≈ 0,66,
-Gare du Nord ≈ 0,63, Orly ≈ 0,49, bois de Vincennes ≈ 0,02 (contre 0,20, 0,17,
-0,08 et 0,001 avec une échelle linéaire `valeur / 100`).
+Exemples : Châtelet ≈ 0,80, bois de Vincennes ≈ 0,18.
 Une position hors du raster ou sans donnée (nodata) n'a pas de score. Une valeur
 brute hors de [0, 100] est traitée comme une donnée invalide (503).
 

@@ -13,7 +13,8 @@ Un indicateur defavorable ne doit jamais etre presente comme une preuve objectiv
 - `src/safety/providers.py` : protocole `IndicatorProvider` et erreurs communes des providers
   (`IndicatorUnavailableError`, `IndicatorDataError`).
 - `src/safety/lighting.py` : lecture du raster et `LightingIndicatorProvider`.
-- `src/safety/luminosite.tif` : raster d'eclairage livre par la branche `victoria`.
+- `src/safety/luminosite_log.tif` : raster d'eclairage en echelle log livre par la branche `victoria`
+  (`luminosite.tif`, l'ancienne version lineaire, n'est plus utilise).
 - `tests/test_api.py` : tests des modeles, du service et des routes.
 - `tests/test_lighting.py` : tests de l'eclairage sur des GeoTIFF synthetiques et sur le raster livre.
 - Les modeles Pydantic echanges (`Position`, `Indicator`, `IndicatorResult`, `EvaluateRequest`,
@@ -110,7 +111,7 @@ Codes d'erreur :
 
 ## Indicateur `lighting`
 
-`LightingIndicatorProvider` (`lighting.py`) lit `luminosite.tif` (configurable avec
+`LightingIndicatorProvider` (`lighting.py`) lit `luminosite_log.tif` (configurable avec
 `SAFETY_LIGHTING_RASTER`) :
 
 ```text
@@ -118,22 +119,21 @@ Position WGS84 (EPSG:4326)
     -> reprojection dans le CRS du raster (pyproj, always_xy=True)
     -> pixel contenant la position (transformation affine inverse, arrondi vers le bas)
     -> valeur brute (rasterio, bande 1, nodata masque)
-    -> normalize_lighting : log(1 + valeur) / log(101)
+    -> normalize_lighting : valeur / 100
     -> score [0, 1]
 ```
 
 Caracteristiques du raster livre : Lambert 93 (EPSG:2154), maille de 130 m, valeurs brutes
-de 0 a 100 dont l'unite n'est pas documentee, environ 37 % de pixels nodata.
+de 0 a 100 deja en echelle logarithmique (unite non documentee), environ 37 % de pixels nodata.
 
 Decisions :
 
-- normalisation **logarithmique** `log(1 + valeur) / log(101)` (0 -> 0, 100 -> 1, croissante),
-  choisie par l'equipe a la place de `valeur / 100`. La distribution brute est tres concentree
-  vers 0 (mediane 0, 95 % des pixels sous 2,7) : en lineaire, 98,5 % de Paris tombait sous 0,25
-  (vigilance elevee). En log : Chatelet ~0,66, Gare du Nord ~0,63, Orly ~0,49, bois de
-  Vincennes ~0,02 ; dans Paris, 8 % des pixels sous 0,25 et 74 % entre 0,25 et 0,45. Pour changer
-  de strategie (percentile...), modifier uniquement `normalize_lighting`, puis ses tests et la
-  documentation ;
+- normalisation **lineaire** `valeur / 100` : le log est desormais applique en amont dans le
+  raster (`luminosite_log.tif`, branche `victoria`). Ne pas rajouter de log dans le service, il
+  serait applique deux fois. Historique : un `log(1 + v) / log(101)` etait applique sur
+  `luminosite.tif` car en lineaire 98,5 % de Paris tombait sous 0,25. Avec le raster log :
+  Chatelet ~0,80, bois de Vincennes ~0,18. Pour changer de strategie, modifier uniquement
+  `normalize_lighting`, puis ses tests et la documentation ;
 - position hors raster, nodata ou `NaN` -> `IndicatorUnavailableError` ;
 - valeur brute hors `[0, 100]` -> `IndicatorDataError`, sans la borner ;
 - le raster est charge entierement en memoire (environ 5 Mo) au premier appel. Un lot de

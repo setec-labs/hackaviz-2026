@@ -52,15 +52,14 @@ def evaluate(provider: LightingIndicatorProvider, position: Position) -> float:
 
 
 class NormalizationTests(unittest.TestCase):
-    def test_logarithmic_normalization(self) -> None:
-        for raw, expected in [(0.0, 0.0), (9.0, math.log(10) / math.log(101)), (100.0, 1.0)]:
+    def test_linear_normalization_of_log_scaled_values(self) -> None:
+        for raw, expected in [(0.0, 0.0), (9.0, 0.09), (100.0, 1.0)]:
             with self.subTest(raw=raw):
                 self.assertAlmostEqual(normalize_lighting(raw), expected)
 
-    def test_normalization_is_increasing_and_spreads_low_values(self) -> None:
+    def test_normalization_is_increasing(self) -> None:
         scores = [normalize_lighting(raw) for raw in (0.0, 0.5, 2.7, 20.0, 50.0, 100.0)]
         self.assertEqual(scores, sorted(scores))
-        self.assertGreater(normalize_lighting(2.7), 0.25)
 
     def test_unexpected_raw_values_are_rejected(self) -> None:
         for raw in (-0.1, 100.1, math.nan, math.inf):
@@ -81,7 +80,7 @@ class LightingProviderTests(unittest.TestCase):
         self.provider = LightingIndicatorProvider(self.raster)
 
     def test_reads_the_pixel_after_reprojection(self) -> None:
-        for (row, column), expected in [((0, 0), 0.0), ((0, 1), math.log(26) / math.log(101)), ((0, 2), 1.0)]:
+        for (row, column), expected in [((0, 0), 0.0), ((0, 1), 0.25), ((0, 2), 1.0)]:
             with self.subTest(row=row, column=column):
                 self.assertAlmostEqual(evaluate(self.provider, pixel_center(row, column)), expected)
 
@@ -113,7 +112,7 @@ class LightingProviderTests(unittest.TestCase):
             evaluate_response = client.post("/evaluate", json={"position": points[2].model_dump()})
         self.assertEqual(response.status_code, 200)
         values = [item["value"] for item in response.json()["indices"]]
-        self.assertAlmostEqual(values[0], math.log(26) / math.log(101))
+        self.assertAlmostEqual(values[0], 0.25)
         self.assertEqual(values[1:], [None, None])
         self.assertEqual(evaluate_response.status_code, 404)
 
@@ -124,7 +123,7 @@ class DeliveredRasterTests(unittest.TestCase):
         provider = LightingIndicatorProvider()
         chatelet = evaluate(provider, Position(latitude=48.8590, longitude=2.3470))
         vincennes_wood = evaluate(provider, Position(latitude=48.8330, longitude=2.4370))
-        self.assertAlmostEqual(chatelet, math.log1p(20.01) / math.log1p(100), places=3)
+        self.assertAlmostEqual(chatelet, 0.7974, places=3)
         self.assertLess(vincennes_wood, chatelet)
         with self.assertRaises(IndicatorUnavailableError):
             evaluate(provider, Position(latitude=45.76, longitude=4.83))
