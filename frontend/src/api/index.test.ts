@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadConfig } from "../config";
-import { MockSafetyIndexClient, MockTripsClient } from "../mocks/mockClients";
+import { MockSafetyIndexClient, MockScenariosClient } from "../mocks/mockClients";
 import { createDataClients } from "./index";
-import { FastApiSafetyIndexClient, FastApiTripsClient } from "./http/fastApiClients";
+import { FastApiSafetyIndexClient, FastApiScenariosClient } from "./http/fastApiClients";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -10,11 +10,11 @@ afterEach(() => {
 });
 
 describe("loadConfig data sources", () => {
-  it("simulates trips but uses the safety API by default", () => {
+  it("uses the routing and safety APIs by default", () => {
     vi.stubEnv("VITE_DATA_SOURCE", "");
     vi.stubEnv("VITE_SAFETY_SOURCE", "");
     const config = loadConfig("");
-    expect(config.dataSource).toBe("mock");
+    expect(config.dataSource).toBe("api");
     expect(config.safetySource).toBe("api");
   });
 
@@ -32,7 +32,7 @@ describe("loadConfig data sources", () => {
   it("falls back to the default for an invalid source", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const config = loadConfig("?source=remote&safetySource=remote");
-    expect(config.dataSource).toBe("mock");
+    expect(config.dataSource).toBe("api");
     expect(config.safetySource).toBe("api");
     expect(warn).toHaveBeenCalledTimes(2);
   });
@@ -41,7 +41,7 @@ describe("loadConfig data sources", () => {
 describe("createDataClients", () => {
   it("combines simulated trips with the safety API", () => {
     const clients = createDataClients(loadConfig("?source=mock&safetySource=api"));
-    expect(clients.trips).toBeInstanceOf(MockTripsClient);
+    expect(clients.scenarios).toBeInstanceOf(MockScenariosClient);
     expect(clients.safety).toBeInstanceOf(FastApiSafetyIndexClient);
     expect(clients.tripsSimulated).toBe(true);
     expect(clients.safetySimulated).toBe(false);
@@ -49,7 +49,7 @@ describe("createDataClients", () => {
 
   it("uses only the APIs when both sources are api", () => {
     const clients = createDataClients(loadConfig("?source=api&safetySource=api"));
-    expect(clients.trips).toBeInstanceOf(FastApiTripsClient);
+    expect(clients.scenarios).toBeInstanceOf(FastApiScenariosClient);
     expect(clients.safety).toBeInstanceOf(FastApiSafetyIndexClient);
     expect(clients.tripsSimulated).toBe(false);
     expect(clients.safetySimulated).toBe(false);
@@ -57,7 +57,7 @@ describe("createDataClients", () => {
 
   it("uses only mocks when both sources are mock", () => {
     const clients = createDataClients(loadConfig("?source=mock&safetySource=mock"));
-    expect(clients.trips).toBeInstanceOf(MockTripsClient);
+    expect(clients.scenarios).toBeInstanceOf(MockScenariosClient);
     expect(clients.safety).toBeInstanceOf(MockSafetyIndexClient);
     expect(clients.tripsSimulated).toBe(true);
     expect(clients.safetySimulated).toBe(true);

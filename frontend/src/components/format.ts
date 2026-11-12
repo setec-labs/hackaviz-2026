@@ -34,6 +34,7 @@ export function formatIndex(value: number | null): string {
 
 const MODE_LABELS: Record<string, string> = {
   walk: "Marche",
+  transit: "Transports en commun",
   bike: "Vélo",
   night_bus: "Bus de nuit",
   car: "Voiture",

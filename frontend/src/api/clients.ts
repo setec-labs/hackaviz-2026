@@ -1,12 +1,14 @@
-import type { GeoPoint, SafetyIndexValue, Trip } from "../domain/types";
+import type { GeoPoint, SafetyIndexValue, ScenarioSummary, Trip } from "../domain/types";
 
 /**
  * Point d'entree unique de l'application vers les donnees.
  * Implemente par les mocks (`src/mocks/`) et par les clients FastAPI (`src/api/http/`).
  */
-export interface TripsClient {
-  /** API 1 : liste des trajets a partir d'une position geographique. */
-  fetchTrips(origin: GeoPoint, signal?: AbortSignal): Promise<Trip[]>;
+export interface ScenariosClient {
+  /** API 1 : catalogue des scenarios (points de depart cliquables). */
+  listScenarios(signal?: AbortSignal): Promise<ScenarioSummary[]>;
+  /** API 1 : trajets d'un scenario. */
+  fetchScenarioTrips(scenarioId: string, signal?: AbortSignal): Promise<Trip[]>;
 }
 
 export interface SafetyIndexClient {
@@ -18,9 +20,9 @@ export interface SafetyIndexClient {
 }
 
 export interface DataClients {
-  trips: TripsClient;
+  scenarios: ScenariosClient;
   safety: SafetyIndexClient;
-  /** Indique a l'interface que les trajets affiches sont simules. */
+  /** Indique a l'interface que les scenarios et trajets affiches sont simules. */
   tripsSimulated: boolean;
   /** Indique a l'interface que l'indice de securite est simule. */
   safetySimulated: boolean;

@@ -1,11 +1,10 @@
-import type { GeoPoint, SafetyIndexValue, Trip } from "../../domain/types";
-import type { SafetyIndexClient, TripsClient } from "../clients";
+import type { GeoPoint, SafetyIndexValue, ScenarioSummary, Trip } from "../../domain/types";
+import type { SafetyIndexClient, ScenariosClient } from "../clients";
 import type { SafetyIndexRequestDto } from "../contracts";
-import { parseSafetyIndexResponse, parseTripsResponse } from "../validation";
+import { parseSafetyIndexResponse, parseScenarioListResponse, parseScenarioResponse } from "../validation";
 
 /*
- * Clients des API FastAPI. `POST /safety-index` est servi par `services/safety`.
- * `GET /trips` est PROVISOIRE : a aligner sur `services/routing` lorsqu'il l'exposera.
+ * Clients des API FastAPI : `services/routing` (scenarios) et `services/safety` (indice).
  */
 
 const SAFETY_BATCH_SIZE = 5000;
@@ -17,15 +16,18 @@ async function readJson(response: Response, service: string): Promise<unknown> {
   return response.json();
 }
 
-export class FastApiTripsClient implements TripsClient {
+export class FastApiScenariosClient implements ScenariosClient {
   constructor(private readonly baseUrl: string) {}
 
-  async fetchTrips(origin: GeoPoint, signal?: AbortSignal): Promise<Trip[]> {
-    const url = new URL("/trips", this.baseUrl);
-    url.searchParams.set("latitude", String(origin.latitude));
-    url.searchParams.set("longitude", String(origin.longitude));
+  async listScenarios(signal?: AbortSignal): Promise<ScenarioSummary[]> {
+    const response = await fetch(new URL("/scenarios", this.baseUrl), { signal });
+    return parseScenarioListResponse(await readJson(response, "Routing"));
+  }
+
+  async fetchScenarioTrips(scenarioId: string, signal?: AbortSignal): Promise<Trip[]> {
+    const url = new URL(`/scenarios/${encodeURIComponent(scenarioId)}`, this.baseUrl);
     const response = await fetch(url, { signal });
-    return parseTripsResponse(await readJson(response, "Trips"));
+    return parseScenarioResponse(await readJson(response, "Routing"), scenarioId);
   }
 }
 

@@ -1,8 +1,8 @@
 import type { Layer } from "@deck.gl/core";
 import { TripsLayer } from "@deck.gl/geo-layers";
-import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { PathLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { RenderDataset, RenderTrip } from "../data/prepareDataset";
-import type { GeoPoint } from "../domain/types";
+import type { ScenarioSummary } from "../domain/types";
 import { rgba } from "../theme/palette";
 import type { HeadBuffers } from "./headPositions";
 
@@ -18,14 +18,63 @@ export const LAYER_IDS = {
   tripsHalo: "trips-halo",
   trips: "trips",
   heads: "heads",
-  origin: "origin",
+  scenarios: "scenarios",
+  scenarioLabels: "scenario-labels",
 } as const;
 
 export interface LayerInputs {
-  dataset: RenderDataset;
-  heads: HeadBuffers;
+  /** Null tant que les trajets du scenario selectionne ne sont pas charges. */
+  dataset: RenderDataset | null;
+  heads: HeadBuffers | null;
   time: number;
-  origin: GeoPoint;
+  scenarios: ScenarioSummary[];
+  selectedScenarioId: string | null;
+}
+
+const scenarioPosition = (scenario: ScenarioSummary): [number, number] => [
+  scenario.origin.longitude,
+  scenario.origin.latitude,
+];
+
+/** Points de depart cliquables ; le scenario selectionne est plein et plus grand (pas seulement colore). */
+function buildScenarioLayers(scenarios: ScenarioSummary[], selectedScenarioId: string | null): Layer[] {
+  const isSelected = (scenario: ScenarioSummary) => scenario.id === selectedScenarioId;
+  return [
+    new ScatterplotLayer<ScenarioSummary>({
+      id: LAYER_IDS.scenarios,
+      data: scenarios,
+      getPosition: scenarioPosition,
+      radiusUnits: "pixels",
+      getRadius: (scenario) => (isSelected(scenario) ? 11 : 8),
+      filled: true,
+      getFillColor: (scenario) => (isSelected(scenario) ? rgba("highlight", 220) : rgba("background", 200)),
+      stroked: true,
+      getLineColor: rgba("highlight", 255),
+      lineWidthUnits: "pixels",
+      getLineWidth: (scenario) => (isSelected(scenario) ? 3 : 2),
+      pickable: true,
+      autoHighlight: true,
+      highlightColor: rgba("selection", 160),
+      updateTriggers: { getRadius: selectedScenarioId, getFillColor: selectedScenarioId, getLineWidth: selectedScenarioId },
+    }),
+    new TextLayer<ScenarioSummary>({
+      id: LAYER_IDS.scenarioLabels,
+      data: scenarios,
+      getPosition: scenarioPosition,
+      getText: (scenario) => scenario.name,
+      characterSet: "auto",
+      getSize: 12,
+      sizeUnits: "pixels",
+      getColor: rgba("text", 235),
+      getPixelOffset: [0, 18],
+      getTextAnchor: "middle",
+      getAlignmentBaseline: "top",
+      fontWeight: 600,
+      outlineWidth: 3,
+      outlineColor: rgba("background", 230),
+      fontSettings: { sdf: true },
+    }),
+  ];
 }
 
 /**
@@ -33,7 +82,11 @@ export interface LayerInputs {
  * l'horloge : deck.gl compare les props et ne reenvoie au GPU que ce qui a change
  * (essentiellement `currentTime` et les positions de tete).
  */
-export function buildLayers({ dataset, heads, time, origin }: LayerInputs): Layer[] {
+export function buildLayers({ dataset, heads, time, scenarios, selectedScenarioId }: LayerInputs): Layer[] {
+  const scenarioLayers = buildScenarioLayers(scenarios, selectedScenarioId);
+  if (!dataset || !heads) {
+    return scenarioLayers;
+  }
   const headCount = heads.update(dataset, time);
   // Attenue le fond des itineraires quand le volume augmente pour garder la lisibilite.
   const routeAlpha = Math.round(Math.min(46, Math.max(10, 12000 / Math.max(1, dataset.trips.length))));
@@ -102,18 +155,6 @@ export function buildLayers({ dataset, heads, time, origin }: LayerInputs): Laye
       autoHighlight: true,
       highlightColor: rgba("selection", 255),
     }),
-    new ScatterplotLayer<GeoPoint>({
-      id: LAYER_IDS.origin,
-      data: [origin],
-      getPosition: (point) => [point.longitude, point.latitude],
-      radiusUnits: "pixels",
-      getRadius: 9,
-      filled: true,
-      getFillColor: rgba("highlight", 70),
-      stroked: true,
-      getLineColor: rgba("highlight", 255),
-      lineWidthUnits: "pixels",
-      getLineWidth: 2,
-    }),
+    ...scenarioLayers,
   ];
 }

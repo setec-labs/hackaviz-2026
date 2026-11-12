@@ -1,16 +1,13 @@
-import type { GeoPoint } from "./domain/types";
-
 export type DataSource = "mock" | "api";
 export type MockFailure = "none" | "trips" | "safety";
 
 export interface AppConfig {
-  /** Source des trajets. */
+  /** Source des scenarios et trajets. */
   dataSource: DataSource;
   /** Source de l'indice de securite, choisie independamment des trajets. */
   safetySource: DataSource;
   tripsApiUrl: string;
   safetyApiUrl: string;
-  initialOrigin: GeoPoint;
   mock: {
     tripCount: number;
     seed: number;
@@ -21,9 +18,6 @@ export interface AppConfig {
 
 export const MAX_MOCK_TRIPS = 20000;
 const DEFAULT_MOCK_TRIPS = 250;
-
-/** Chatelet - Les Halles : point de depart par defaut. */
-const DEFAULT_ORIGIN: GeoPoint = { latitude: 48.8619, longitude: 2.3466 };
 
 function parseDataSource(value: string | null | undefined, fallback: DataSource): DataSource {
   if (value === "api" || value === "mock") {
@@ -49,15 +43,15 @@ function parseInteger(value: string | null | undefined, fallback: number, min: n
 
 /**
  * Configuration lue depuis les variables Vite (`.env`) et surchargeable par l'URL
- * pour faciliter les tests manuels, par ex. `?trips=3000&seed=7&mockError=safety`.
- * Les trajets sont simules par defaut (`?source=`) ; l'indice de securite vient de
- * l'API safety par defaut (`?safetySource=mock` pour le simuler).
+ * pour faciliter les tests manuels, par ex. `?source=mock&trips=3000&seed=7&mockError=safety`.
+ * Les scenarios viennent de l'API routing et l'indice de l'API safety par defaut ;
+ * `?source=mock` et `?safetySource=mock` les simulent independamment.
  */
 export function loadConfig(search: string = window.location.search): AppConfig {
   const params = new URLSearchParams(search);
   const env = import.meta.env;
 
-  const dataSource = parseDataSource(params.get("source") ?? env.VITE_DATA_SOURCE, "mock");
+  const dataSource = parseDataSource(params.get("source") ?? env.VITE_DATA_SOURCE, "api");
   const safetySource = parseDataSource(params.get("safetySource") ?? env.VITE_SAFETY_SOURCE, "api");
   const failureParam = params.get("mockError");
   const failure: MockFailure = failureParam === "trips" || failureParam === "safety" ? failureParam : "none";
@@ -67,7 +61,6 @@ export function loadConfig(search: string = window.location.search): AppConfig {
     safetySource,
     tripsApiUrl: env.VITE_TRIPS_API_URL ?? "http://localhost:8001",
     safetyApiUrl: env.VITE_SAFETY_API_URL ?? "http://localhost:8002",
-    initialOrigin: DEFAULT_ORIGIN,
     mock: {
       tripCount: parseInteger(
         params.get("trips") ?? env.VITE_MOCK_TRIP_COUNT,

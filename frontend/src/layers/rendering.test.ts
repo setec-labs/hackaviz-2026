@@ -9,6 +9,7 @@ const base = Date.parse("2026-11-10T22:00:00Z");
 const trips: Trip[] = [
   {
     id: "a",
+    destinationName: "Destination A",
     mode: "walk",
     startTimeMs: base,
     endTimeMs: base + 200_000,
@@ -21,6 +22,7 @@ const trips: Trip[] = [
   },
   {
     id: "b",
+    destinationName: null,
     mode: null,
     startTimeMs: base + 150_000,
     endTimeMs: base + 300_000,

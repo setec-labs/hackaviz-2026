@@ -1,11 +1,12 @@
+import type { PickingInfo } from "@deck.gl/core";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { Map as MapLibreMap, NavigationControl, setWorkerUrl, type IControl } from "maplibre-gl";
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import type { RenderDataset } from "../data/prepareDataset";
-import type { GeoPoint } from "../domain/types";
-import { buildLayers } from "../layers/buildLayers";
+import type { ScenarioSummary } from "../domain/types";
+import { buildLayers, LAYER_IDS } from "../layers/buildLayers";
 import { HeadBuffers } from "../layers/headPositions";
 import { buildTooltip } from "../layers/tooltip";
 import type { SimulationClock } from "../simulation/SimulationClock";
@@ -17,8 +18,9 @@ setWorkerUrl(maplibreWorkerUrl);
 interface MapViewProps {
   dataset: RenderDataset | null;
   clock: SimulationClock;
-  origin: GeoPoint;
-  onOriginChange: (origin: GeoPoint) => void;
+  scenarios: ScenarioSummary[];
+  selectedScenarioId: string | null;
+  onScenarioSelect: (scenarioId: string) => void;
   onMapError: (message: string) => void;
 }
 
@@ -26,13 +28,15 @@ interface MapViewProps {
  * Carte MapLibre + overlay deck.gl. Le rendu des couches est pilote directement par
  * l'horloge (`clock.onFrame`) : aucun rendu React n'a lieu pendant l'animation.
  */
-export function MapView({ dataset, clock, origin, onOriginChange, onMapError }: MapViewProps) {
+export function MapView({ dataset, clock, scenarios, selectedScenarioId, onScenarioSelect, onMapError }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<MapboxOverlay | null>(null);
   const datasetRef = useRef<RenderDataset | null>(dataset);
   const headsRef = useRef<HeadBuffers | null>(null);
-  const callbacksRef = useRef({ onOriginChange, onMapError });
-  callbacksRef.current = { onOriginChange, onMapError };
+  const selectedRef = useRef<string | null>(selectedScenarioId);
+  selectedRef.current = selectedScenarioId;
+  const callbacksRef = useRef({ onScenarioSelect, onMapError });
+  callbacksRef.current = { onScenarioSelect, onMapError };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -67,14 +71,19 @@ export function MapView({ dataset, clock, origin, onOriginChange, onMapError }: 
         callbacksRef.current.onMapError("Fond de carte indisponible : les trajets restent affichés sur un fond uni.");
       }
     });
-    map.on("click", (event) => {
-      callbacksRef.current.onOriginChange({ latitude: event.lngLat.lat, longitude: event.lngLat.lng });
-    });
-
+    const isScenario = (info: PickingInfo) => info.layer?.id === LAYER_IDS.scenarios && Boolean(info.object);
     const overlay = new MapboxOverlay({
       interleaved: false,
       layers: [],
-      getTooltip: (info) => buildTooltip(info, datasetRef.current, headsRef.current),
+      getTooltip: (info) => buildTooltip(info, datasetRef.current, headsRef.current, selectedRef.current),
+      onHover: (info) => {
+        map.getCanvas().style.cursor = isScenario(info) ? "pointer" : "";
+      },
+      onClick: (info) => {
+        if (isScenario(info)) {
+          callbacksRef.current.onScenarioSelect((info.object as ScenarioSummary).id);
+        }
+      },
     });
     map.addControl(overlay as unknown as IControl);
     overlayRef.current = overlay;
@@ -89,17 +98,13 @@ export function MapView({ dataset, clock, origin, onOriginChange, onMapError }: 
     datasetRef.current = dataset;
     const overlay = overlayRef.current;
     if (!overlay) return;
-    if (!dataset) {
-      headsRef.current = null;
-      overlay.setProps({ layers: [] });
-      return;
-    }
-    const heads = new HeadBuffers(dataset.trips.length);
+    const heads = dataset ? new HeadBuffers(dataset.trips.length) : null;
     headsRef.current = heads;
-    const render = (time: number) => overlay.setProps({ layers: buildLayers({ dataset, heads, time, origin }) });
+    const render = (time: number) =>
+      overlay.setProps({ layers: buildLayers({ dataset, heads, time, scenarios, selectedScenarioId }) });
     render(clock.time);
-    return clock.onFrame(render);
-  }, [dataset, clock, origin]);
+    return dataset ? clock.onFrame(render) : undefined;
+  }, [dataset, clock, scenarios, selectedScenarioId]);
 
   return (
     <div className="absolute inset-0">
@@ -107,7 +112,7 @@ export function MapView({ dataset, clock, origin, onOriginChange, onMapError }: 
         ref={containerRef}
         className="h-full w-full"
         role="region"
-        aria-label="Carte des trajets de nuit en Île-de-France. Cliquez pour choisir un nouveau point de départ."
+        aria-label="Carte des trajets de nuit en Île-de-France. Cliquez sur un point de départ pour afficher son scénario."
       />
     </div>
   );

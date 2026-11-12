@@ -5,6 +5,7 @@ import type { Rgba } from "../theme/palette";
 /** Trajet pret a etre rendu par deck.gl (temps en secondes relatives a `originMs`). */
 export interface RenderTrip {
   id: string;
+  destinationName: string | null;
   mode: string | null;
   path: [number, number][];
   /** Secondes depuis `RenderDataset.originMs` (Float32 cote GPU : rester sur des valeurs moderees). */
@@ -51,6 +52,7 @@ export function prepareDataset(trips: Trip[], safetyValues: SafetyIndexValue[] |
     endTime = Math.max(endTime, tripEnd);
     return {
       id: trip.id,
+      destinationName: trip.destinationName,
       mode: trip.mode,
       path: trip.path,
       timestamps,

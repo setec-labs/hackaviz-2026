@@ -4,10 +4,10 @@ Cette brique contient l'interface de visualisation du projet Hackaviz Mobilités
 interactive des trajets de nuit en Île-de-France, animés dans le temps et colorés selon un indicateur lié au
 sentiment de sécurité.
 
-Par défaut, les **trajets sont simulés** (l'API trajets n'existe pas encore) et l'**indice provient du
-service safety** (`POST /safety-index`, port 8002). Il est actuellement calculé à partir du seul éclairage
-nocturne. Sans service safety démarré, les trajets s'affichent en « non disponible » ; utiliser
-`?safetySource=mock` pour travailler entièrement sans backend.
+Par défaut, les **scénarios et leurs trajets proviennent du service routing** (`GET /scenarios`, port 8001)
+et l'**indice provient du service safety** (`POST /safety-index`, port 8002). L'indice est actuellement
+calculé à partir du seul éclairage nocturne. Sans service safety démarré, les trajets s'affichent en
+« non disponible » ; utiliser `?source=mock&safetySource=mock` pour travailler entièrement sans backend.
 
 > L'indice affiché est un **indicateur**. Il ne mesure pas objectivement le danger d'un lieu. Les valeurs
 > simulées sont synthétiques et sans lien avec des lieux réels.
@@ -71,12 +71,12 @@ npm run preview     # sert le build de production
 
 | Paramètre | Effet | Exemple |
 |---|---|---|
-| `source` | source des trajets : `mock` (défaut) ou `api` | `?source=api` |
+| `source` | source des scénarios : `api` (défaut, service routing) ou `mock` | `?source=mock` |
 | `safetySource` | source de l'indice : `api` (défaut) ou `mock` | `?safetySource=mock` |
-| `trips` | nombre de trajets simulés (0 à 20 000) | `?trips=3000` |
+| `trips` | nombre de trajets par scénario simulé (0 à 20 000) | `?trips=3000` |
 | `seed` | graine des données simulées | `?seed=7` |
 | `latency` | latence simulée des API, en ms | `?latency=0` |
-| `mockError` | simule la panne d'un service (`trips` ou `safety`) | `?mockError=safety` |
+| `mockError` | simule la panne d'un service mock (`trips` = routing, ou `safety`) | `?mockError=safety` |
 
 Les valeurs par défaut peuvent aussi être définies avec `VITE_DATA_SOURCE`, `VITE_SAFETY_SOURCE` et
 `VITE_MOCK_TRIP_COUNT` (voir `.env.example`). Le badge en haut à gauche indique ce qui est simulé.
@@ -88,8 +88,12 @@ Les valeurs par défaut peuvent aussi être définies avec `VITE_DATA_SOURCE`, `
 - **Timeline** : le curseur permet de se déplacer dans le temps simulé.
 - **Vitesse** : définit combien de secondes réelles représente 1 heure simulée
   (temps réel = 3 600 s, normale = 60 s, rapide = 10 s, très rapide = 1 s). Modifiable pendant l'animation.
-- **Clic sur la carte** : choisit un nouveau point de départ et recharge les trajets.
-- **Survol** d'un trajet ou d'un point : infobulle avec le mode, les horaires et l'indicateur au point courant.
+- **Points de départ des scénarios** : le survol affiche le nom, la description, l'heure de départ et le
+  nombre de trajets ; un clic sélectionne le scénario et charge ses trajets. Le sélecteur « Scénario » de
+  l'en-tête offre la même action au clavier. Une description générée automatiquement (fichier sans
+  `name`/`description`) est signalée comme telle.
+- **Survol** d'un trajet ou d'un point : infobulle avec la destination, le mode, les horaires et
+  l'indicateur au point courant.
 - **Contrôleur de simulation** : cliquez sur son titre pour replier ou réafficher le panneau, sans arrêter
   la simulation ni le son.
 - **Options → ambiance sonore** : boucle de 41 secondes, activée au démarrage à 50 % du volume
@@ -112,7 +116,7 @@ frontend/
     ├── api/
     │   ├── contracts.ts       # contrats JSON attendus des API FastAPI (snake_case, provisoires)
     │   ├── validation.ts      # validation des réponses + conversion vers le domaine
-    │   ├── clients.ts         # interfaces TripsClient / SafetyIndexClient
+    │   ├── clients.ts         # interfaces ScenariosClient / SafetyIndexClient
     │   ├── http/              # clients FastAPI (fetch)
     │   └── index.ts           # createDataClients : choix mock / API, source par source
     ├── mocks/                 # données simulées (trajets, champ d'indice, clients mock)
@@ -127,13 +131,15 @@ frontend/
 ### Flux de données
 
 ```text
-TripsClient.fetchTrips(origin) ──► Trip[] ──┐
-                                            ├─► prepareDataset ─► RenderDataset ─► couches deck.gl
-SafetyIndexClient.fetchSafetyIndices(pts) ──┘                                         ▲
-                                                           SimulationClock.onFrame ───┘
+ScenariosClient.listScenarios() ──► ScenarioSummary[] ──► marqueurs cliquables + sélecteur
+                                                              │ scénario sélectionné
+ScenariosClient.fetchScenarioTrips(id) ──► Trip[] ──┐         ▼
+                                                    ├─► prepareDataset ─► RenderDataset ─► couches deck.gl
+SafetyIndexClient.fetchSafetyIndices(pts) ──────────┘                                         ▲
+                                                                   SimulationClock.onFrame ───┘
 ```
 
-- Si le service **trajets** échoue, un message d'erreur avec bouton « Réessayer » est affiché.
+- Si le service **routing** échoue, un message d'erreur avec bouton « Réessayer » est affiché.
 - Si le service **indice** échoue, les trajets restent affichés et l'indicateur est signalé
   « non disponible » (aucune valeur n'est inventée).
 
@@ -160,10 +166,11 @@ l'indice appartient au service `services/safety`.
 
 Toutes les données simulées sont dans [`src/mocks/`](src/mocks/) :
 
-- `tripGenerator.ts` : génère une réponse au format de l'API trajets (trajets autour du point de départ vers
-  des pôles d'Île-de-France, modes et vitesses variés, départs étalés à partir du 10/11/2026 22:00) ;
+- `tripGenerator.ts` : génère un scénario au format de l'API routing (trajets depuis l'origine du scénario
+  vers des pôles d'Île-de-France, modes et vitesses variés, départs étalés à partir du 10/11/2026 22:00) ;
 - `safetyField.ts` : champ synthétique d'indice (zones aléatoires, quelques zones sans donnée) ;
-- `mockClients.ts` : `MockTripsClient` et `MockSafetyIndexClient`, qui implémentent les mêmes interfaces que
+- `mockClients.ts` : trois scénarios simulés, `MockScenariosClient` et `MockSafetyIndexClient`, qui
+  implémentent les mêmes interfaces que
   les clients HTTP et passent par le **même validateur** que les réponses réelles.
 
 Les données sont déterministes pour une graine donnée et ne sont jamais codées dans les composants React.
@@ -171,17 +178,17 @@ Les données sont déterministes pour une graine donnée et ne sont jamais codé
 ## Brancher les API FastAPI
 
 Le choix entre mock et API se fait uniquement dans `src/api/index.ts` (`createDataClients`), séparément
-pour les trajets (`VITE_DATA_SOURCE` / `?source=`) et pour l'indice (`VITE_SAFETY_SOURCE` /
+pour les scénarios (`VITE_DATA_SOURCE` / `?source=`) et pour l'indice (`VITE_SAFETY_SOURCE` /
 `?safetySource=`). Aucun composant, couche ou hook n'a besoin d'être modifié.
 
 - **Indice (branché)** : `POST {VITE_SAFETY_API_URL}/safety-index` avec `{ "points": [...] }` →
   `SafetyIndexResponseDto` (indices dans l'ordre des points, `value` entre 0 et 1 ou `null`), servi par
   `services/safety`, qui autorise par CORS l'origine `http://localhost:5173`. Le client envoie des lots
   de 5 000 points au plus.
-- **Trajets (provisoire)** : `GET {VITE_TRIPS_API_URL}/trips?latitude=..&longitude=..` → `TripsResponseDto`.
-  Cette route n'existe pas encore dans `services/routing`. Une fois implémentée, aligner `contracts.ts`,
-  `validation.ts` et `src/api/http/fastApiClients.ts` sur les modèles Pydantic de `src/hackaviz_2026/`,
-  puis passer `VITE_DATA_SOURCE=api` dans `frontend/.env.local`.
+- **Scénarios (branché)** : `GET {VITE_TRIPS_API_URL}/scenarios` → `ScenarioSummaryDto[]`, puis
+  `GET {VITE_TRIPS_API_URL}/scenarios/{id}` → `ScenarioDto` (trajets avec `coordinates` et `offsets_s`),
+  servis par `services/routing` à partir des `journeys.json` du pipeline. Les DTO de `contracts.ts`
+  reflètent les modèles Pydantic de `src/hackaviz_2026/routing.py` : les faire évoluer ensemble.
 
 ## Où travailler ?
 

@@ -2,6 +2,7 @@ import type { PickingInfo } from "@deck.gl/core";
 import { formatDuration, formatIndex, formatMode, formatSimulatedTime } from "../components/format";
 import type { RenderDataset, RenderTrip } from "../data/prepareDataset";
 import { classifySafetyIndex } from "../domain/safetyLevels";
+import type { ScenarioSummary } from "../domain/types";
 import { palette } from "../theme/palette";
 import type { HeadBuffers } from "./headPositions";
 import { LAYER_IDS } from "./buildLayers";
@@ -23,23 +24,52 @@ const TOOLTIP_STYLE = {
 
 function tripLines(dataset: RenderDataset, trip: RenderTrip): string[] {
   return [
-    `<strong>${escapeHtml(trip.id)}</strong>`,
+    `<strong>${escapeHtml(trip.destinationName ?? trip.id)}</strong>`,
     `${escapeHtml(formatMode(trip.mode))} · ${formatDuration(trip.endTime - trip.startTime)}`,
     `${formatSimulatedTime(dataset.originMs, trip.startTime)} → ${formatSimulatedTime(dataset.originMs, trip.endTime)}`,
   ];
 }
 
-/** Infobulle deck.gl : decrit le trajet et, pour un point courant, l'indicateur associe. */
+const departureFormatter = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: "Europe/Paris",
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+function scenarioLines(scenario: ScenarioSummary, selected: boolean): string[] {
+  const muted = (text: string) => `<span style="color:${palette.textMuted}">${escapeHtml(text)}</span>`;
+  return [
+    `<strong>${escapeHtml(scenario.name)}</strong>`,
+    escapeHtml(scenario.description),
+    ...(scenario.metadataGenerated ? [muted("Description générée automatiquement à partir des données.")] : []),
+    muted(`Départ ${departureFormatter.format(scenario.departureTimeMs)} · ${scenario.journeyCount} trajets`),
+    muted(selected ? "Scénario affiché" : "Cliquez pour afficher ce scénario"),
+  ];
+}
+
+/**
+ * Infobulle deck.gl : decrit un point de depart de scenario, un trajet et, pour un point
+ * courant, l'indicateur associe.
+ */
 export function buildTooltip(
   info: PickingInfo,
   dataset: RenderDataset | null,
   heads: HeadBuffers | null,
+  selectedScenarioId: string | null = null,
 ): { html: string; style: Record<string, string> } | null {
-  if (!dataset || info.index < 0) {
+  if (info.index < 0) {
     return null;
   }
   let lines: string[] | null = null;
-  if (info.layer?.id === LAYER_IDS.trips && info.object) {
+  if (info.layer?.id === LAYER_IDS.scenarios && info.object) {
+    const scenario = info.object as ScenarioSummary;
+    lines = scenarioLines(scenario, scenario.id === selectedScenarioId);
+  } else if (!dataset) {
+    return null;
+  } else if (info.layer?.id === LAYER_IDS.trips && info.object) {
     lines = tripLines(dataset, info.object as RenderTrip);
   } else if (info.layer?.id === LAYER_IDS.heads && heads && info.index < heads.count) {
     const trip = dataset.trips[heads.tripIndices[info.index] ?? -1];

@@ -1,9 +1,9 @@
-import type { SafetyIndexClient, TripsClient } from "../api/clients";
-import { parseSafetyIndexResponse, parseTripsResponse } from "../api/validation";
-import type { GeoPoint, SafetyIndexValue, Trip } from "../domain/types";
+import type { SafetyIndexClient, ScenariosClient } from "../api/clients";
+import { parseSafetyIndexResponse, parseScenarioListResponse, parseScenarioResponse } from "../api/validation";
+import type { GeoPoint, SafetyIndexValue, ScenarioSummary, Trip } from "../domain/types";
 import { hashString } from "./random";
 import { createMockSafetyField, generateMockSafetyResponse, type MockSafetyField } from "./safetyField";
-import { generateMockTripsResponse } from "./tripGenerator";
+import { generateMockScenario } from "./tripGenerator";
 
 export interface MockClientOptions {
   tripCount: number;
@@ -12,6 +12,35 @@ export interface MockClientOptions {
   /** Simule une panne pour verifier les etats d'erreur de l'interface. */
   fail: boolean;
 }
+
+interface MockScenarioDefinition {
+  id: string;
+  name: string;
+  description: string;
+  origin: GeoPoint;
+}
+
+/** Scenarios simules : origines fixes, trajets synthetiques ne suivant pas le reseau reel. */
+export const MOCK_SCENARIOS: readonly MockScenarioDefinition[] = [
+  {
+    id: "mock-chatelet",
+    name: "Châtelet (simulé)",
+    description: "Scénario simulé : trajets synthétiques au départ de Châtelet - Les Halles.",
+    origin: { latitude: 48.8619, longitude: 2.3466 },
+  },
+  {
+    id: "mock-bercy",
+    name: "Bercy (simulé)",
+    description: "Scénario simulé : trajets synthétiques au départ de Bercy.",
+    origin: { latitude: 48.8388, longitude: 2.3786 },
+  },
+  {
+    id: "mock-saint-denis",
+    name: "Saint-Denis (simulé)",
+    description: "Scénario simulé : trajets synthétiques au départ de Saint-Denis.",
+    origin: { latitude: 48.9362, longitude: 2.3574 },
+  },
+];
 
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -32,20 +61,39 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 /**
- * Simule l'API trajets. La reponse passe par JSON puis par le meme validateur que le
+ * Simule l'API routing. Les reponses passent par JSON puis par les memes validateurs que le
  * client HTTP, afin que le reste de l'application ne fasse aucune difference.
  */
-export class MockTripsClient implements TripsClient {
+export class MockScenariosClient implements ScenariosClient {
   constructor(private readonly options: MockClientOptions) {}
 
-  async fetchTrips(origin: GeoPoint, signal?: AbortSignal): Promise<Trip[]> {
+  private generate(definition: MockScenarioDefinition) {
+    const seed = (this.options.seed ^ hashString(definition.id)) >>> 0;
+    return generateMockScenario({ ...definition, tripCount: this.options.tripCount, seed });
+  }
+
+  async listScenarios(signal?: AbortSignal): Promise<ScenarioSummary[]> {
+    await delay(this.options.latencyMs / 2, signal);
+    if (this.options.fail) {
+      throw new Error("Simulated failure of the routing service");
+    }
+    const summaries = MOCK_SCENARIOS.map((definition) => {
+      const { journeys: _journeys, ...summary } = this.generate(definition);
+      return summary;
+    });
+    return parseScenarioListResponse(JSON.parse(JSON.stringify(summaries)));
+  }
+
+  async fetchScenarioTrips(scenarioId: string, signal?: AbortSignal): Promise<Trip[]> {
     await delay(this.options.latencyMs, signal);
     if (this.options.fail) {
-      throw new Error("Simulated failure of the trips service");
+      throw new Error("Simulated failure of the routing service");
     }
-    const seed = (this.options.seed ^ hashString(`${origin.latitude.toFixed(4)},${origin.longitude.toFixed(4)}`)) >>> 0;
-    const response = generateMockTripsResponse({ origin, tripCount: this.options.tripCount, seed });
-    return parseTripsResponse(JSON.parse(JSON.stringify(response)));
+    const definition = MOCK_SCENARIOS.find((scenario) => scenario.id === scenarioId);
+    if (!definition) {
+      throw new Error(`Routing service responded with HTTP 404 (unknown scenario "${scenarioId}")`);
+    }
+    return parseScenarioResponse(JSON.parse(JSON.stringify(this.generate(definition))), scenarioId);
   }
 }
 

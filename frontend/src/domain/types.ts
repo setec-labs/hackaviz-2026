@@ -6,8 +6,22 @@ export interface GeoPoint {
   longitude: number;
 }
 
+/** Scenario de trajets : un point et une heure de depart, plusieurs destinations. */
+export interface ScenarioSummary {
+  id: string;
+  name: string;
+  description: string;
+  /** Vrai si le nom et la description ont ete derives des donnees faute de metadonnees. */
+  metadataGenerated: boolean;
+  origin: GeoPoint;
+  departureTimeMs: number;
+  journeyCount: number;
+}
+
 export interface Trip {
   id: string;
+  /** Nom de la destination s'il est fourni, sinon null. */
+  destinationName: string | null;
   /** Mode de deplacement s'il est fourni par l'API, sinon null. */
   mode: string | null;
   /** Debut et fin en millisecondes epoch UTC. */

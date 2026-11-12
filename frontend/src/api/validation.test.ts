@@ -1,52 +1,121 @@
 import { describe, expect, it } from "vitest";
-import { ContractError, parseSafetyIndexResponse, parseTripsResponse } from "./validation";
+import {
+  ContractError,
+  parseSafetyIndexResponse,
+  parseScenarioListResponse,
+  parseScenarioResponse,
+  summarizeJourneyMode,
+} from "./validation";
 
-const validTrip = {
-  trip_id: "t1",
-  start_time: "2026-11-10T22:00:00+01:00",
-  end_time: "2026-11-10T22:10:00+01:00",
-  mode: "walk",
-  points: [
-    { latitude: 48.86, longitude: 2.35, timestamp: "2026-11-10T22:00:00+01:00" },
-    { latitude: 48.87, longitude: 2.36, timestamp: "2026-11-10T22:10:00+01:00" },
-  ],
+const summary = {
+  id: "CHU-Avicenne",
+  name: "CHU Avicenne",
+  description: "Départ le 08/11/2026 à 00:05 : 1 trajets vers 1 destinations.",
+  metadata_generated: true,
+  origin: { latitude: 48.916, longitude: 2.425 },
+  departure_time: "2026-11-08T00:05:00+01:00",
+  journey_count: 1,
 };
 
-describe("parseTripsResponse", () => {
-  it("maps a valid response to domain trips", () => {
-    const [trip] = parseTripsResponse({ origin: { latitude: 48.86, longitude: 2.35 }, trips: [validTrip] });
-    expect(trip).toEqual({
-      id: "t1",
-      mode: "walk",
-      startTimeMs: Date.parse(validTrip.start_time),
-      endTimeMs: Date.parse(validTrip.end_time),
-      path: [
-        [2.35, 48.86],
-        [2.36, 48.87],
-      ],
-      timestampsMs: [Date.parse(validTrip.start_time), Date.parse(validTrip.end_time)],
-    });
-  });
+const journey = {
+  journey_id: "j-1",
+  destination: { latitude: 48.87, longitude: 2.36, name: "Paris 10e", population: null },
+  start_time: "2026-11-08T00:05:00+01:00",
+  end_time: "2026-11-08T00:15:00+01:00",
+  legs: [
+    {
+      mode: "walk_access",
+      start_time: "2026-11-08T00:05:00+01:00",
+      end_time: "2026-11-08T00:08:00+01:00",
+      from_stop: "ORIGIN",
+      to_stop: "S1",
+      gtfs_trip_id: null,
+      point_range: [0, 2],
+    },
+    {
+      mode: "transit",
+      start_time: "2026-11-08T00:08:00+01:00",
+      end_time: "2026-11-08T00:15:00+01:00",
+      from_stop: "S1",
+      to_stop: "DESTINATION",
+      gtfs_trip_id: "T1",
+      point_range: [2, 3],
+    },
+  ],
+  coordinates: [
+    [2.425, 48.916],
+    [2.41, 48.9],
+    [2.36, 48.87],
+  ],
+  offsets_s: [0, 180, 600],
+};
 
-  it("keeps a missing mode as null instead of inventing one", () => {
-    const { mode: _mode, ...withoutMode } = validTrip;
-    expect(parseTripsResponse({ trips: [withoutMode] })[0]?.mode).toBeNull();
+const scenario = { ...summary, journeys: [journey] };
+const start = Date.parse(journey.start_time);
+
+describe("parseScenarioListResponse", () => {
+  it("maps summaries to domain objects", () => {
+    expect(parseScenarioListResponse([summary])).toEqual([
+      {
+        id: "CHU-Avicenne",
+        name: "CHU Avicenne",
+        description: summary.description,
+        metadataGenerated: true,
+        origin: summary.origin,
+        departureTimeMs: Date.parse(summary.departure_time),
+        journeyCount: 1,
+      },
+    ]);
+    expect(parseScenarioListResponse([])).toEqual([]);
   });
 
   it.each([
-    ["not an object", null],
-    ["missing trips", {}],
-    ["missing id", { trips: [{ ...validTrip, trip_id: "" }] }],
-    ["single point", { trips: [{ ...validTrip, points: validTrip.points.slice(0, 1) }] }],
-    ["invalid timestamp", { trips: [{ ...validTrip, start_time: "tonight" }] }],
-    ["end before start", { trips: [{ ...validTrip, end_time: "2026-11-10T21:00:00+01:00" }] }],
-    [
-      "invalid latitude",
-      { trips: [{ ...validTrip, points: [{ ...validTrip.points[0], latitude: 120 }, validTrip.points[1]] }] },
-    ],
-    ["unordered points", { trips: [{ ...validTrip, points: [...validTrip.points].reverse() }] }],
+    ["not an array", {}],
+    ["missing name", [{ ...summary, name: "" }]],
+    ["missing metadata flag", [{ ...summary, metadata_generated: undefined }]],
+    ["invalid origin", [{ ...summary, origin: { latitude: 120, longitude: 2 } }]],
+    ["invalid departure", [{ ...summary, departure_time: "tonight" }]],
+    ["negative count", [{ ...summary, journey_count: -1 }]],
   ])("rejects %s", (_label, payload) => {
-    expect(() => parseTripsResponse(payload)).toThrow(ContractError);
+    expect(() => parseScenarioListResponse(payload)).toThrow(ContractError);
+  });
+});
+
+describe("parseScenarioResponse", () => {
+  it("converts journeys to timed trips", () => {
+    expect(parseScenarioResponse(scenario, "CHU-Avicenne")).toEqual([
+      {
+        id: "j-1",
+        destinationName: "Paris 10e",
+        mode: "transit",
+        startTimeMs: start,
+        endTimeMs: Date.parse(journey.end_time),
+        path: journey.coordinates,
+        timestampsMs: [start, start + 180_000, start + 600_000],
+      },
+    ]);
+  });
+
+  it.each([
+    ["another scenario", { ...scenario, id: "Metropolis" }],
+    ["count mismatch", { ...scenario, journey_count: 2 }],
+    ["no legs", { ...scenario, journeys: [{ ...journey, legs: [] }] }],
+    ["single point", { ...scenario, journeys: [{ ...journey, coordinates: [[2.4, 48.9]], offsets_s: [0] }] }],
+    ["offset count", { ...scenario, journeys: [{ ...journey, offsets_s: [0, 180] }] }],
+    ["decreasing offsets", { ...scenario, journeys: [{ ...journey, offsets_s: [0, 600, 180] }] }],
+    ["invalid coordinate", { ...scenario, journeys: [{ ...journey, coordinates: [[2.4, 95], [2.4, 48.9], [2.3, 48.8]] }] }],
+    ["end before start", { ...scenario, journeys: [{ ...journey, end_time: "2026-11-08T00:00:00+01:00" }] }],
+  ])("rejects %s", (_label, payload) => {
+    expect(() => parseScenarioResponse(payload, "CHU-Avicenne")).toThrow(ContractError);
+  });
+});
+
+describe("summarizeJourneyMode", () => {
+  it("summarizes multimodal legs without inventing a mode", () => {
+    expect(summarizeJourneyMode(["walk_access", "wait", "transit", "walk_egress"])).toBe("transit");
+    expect(summarizeJourneyMode(["walk_direct"])).toBe("walk");
+    expect(summarizeJourneyMode(["bike"])).toBe("bike");
+    expect(summarizeJourneyMode(["wait"])).toBeNull();
   });
 });
 

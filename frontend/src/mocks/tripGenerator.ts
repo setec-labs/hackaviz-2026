@@ -1,4 +1,4 @@
-import type { TripDto, TripPointDto, TripsResponseDto } from "../api/contracts";
+import type { JourneyDto, ScenarioDto } from "../api/contracts";
 import type { GeoPoint } from "../domain/types";
 import { createRandom, pickWeighted, randomBetween, type Random } from "./random";
 
@@ -150,8 +150,9 @@ function buildPath(random: Random, start: GeoPoint, end: GeoPoint, km: number): 
   return points;
 }
 
-function buildTrip(random: Random, index: number, options: Required<MockTripOptions>): TripDto {
-  const start = clampToRegion(offsetKm(options.origin, gaussian(random) * 1.5, gaussian(random) * 1.5));
+function buildJourney(random: Random, index: number, options: Required<MockTripOptions>): JourneyDto {
+  // Tous les trajets d'un scenario partent de son origine, comme dans le pipeline routing.
+  const start = clampToRegion(options.origin);
   let end = pickDestination(random, start);
   let km = distanceKm(start, end);
   if (km < 0.5) {
@@ -161,8 +162,10 @@ function buildTrip(random: Random, index: number, options: Required<MockTripOpti
   const profile = pickMode(random, km);
   const path = buildPath(random, start, end, km);
 
-  let currentMs = options.windowStartMs + random() * options.departureWindowMinutes * 60_000;
-  const points: TripPointDto[] = [];
+  const startMs = Math.round(options.windowStartMs + random() * options.departureWindowMinutes * 60_000);
+  let currentMs = startMs;
+  const coordinates: [number, number][] = [];
+  const offsets: number[] = [];
   path.forEach((point, pointIndex) => {
     const previous = path[pointIndex - 1];
     if (previous) {
@@ -173,38 +176,68 @@ function buildTrip(random: Random, index: number, options: Required<MockTripOpti
         currentMs += randomBetween(random, ...profile.stopSeconds) * 1000;
       }
     }
-    points.push({
-      latitude: Number(point.latitude.toFixed(6)),
-      longitude: Number(point.longitude.toFixed(6)),
-      timestamp: new Date(Math.round(currentMs)).toISOString(),
-    });
+    coordinates.push([Number(point.longitude.toFixed(6)), Number(point.latitude.toFixed(6))]);
+    offsets.push(Math.round((currentMs - startMs) / 100) / 10);
   });
 
-  const first = points[0];
-  const last = points[points.length - 1];
-  if (!first || !last) {
+  const last = path[path.length - 1];
+  const lastOffset = offsets[offsets.length - 1];
+  if (!last || lastOffset === undefined) {
     throw new Error("Generated trip has no points");
   }
+  const startTime = new Date(startMs).toISOString();
+  const endTime = new Date(startMs + lastOffset * 1000).toISOString();
   return {
-    trip_id: `mock-${options.seed}-${String(index).padStart(5, "0")}`,
-    start_time: first.timestamp,
-    end_time: last.timestamp,
-    mode: profile.mode,
-    points,
+    journey_id: `mock-${options.seed}-${String(index).padStart(5, "0")}`,
+    destination: {
+      latitude: Number(last.latitude.toFixed(6)),
+      longitude: Number(last.longitude.toFixed(6)),
+      name: `Destination simulée ${index + 1}`,
+    },
+    start_time: startTime,
+    end_time: endTime,
+    legs: [
+      {
+        mode: profile.mode,
+        start_time: startTime,
+        end_time: endTime,
+        from_stop: "ORIGIN",
+        to_stop: "DESTINATION",
+        gtfs_trip_id: null,
+        point_range: [0, coordinates.length],
+      },
+    ],
+    coordinates,
+    offsets_s: offsets,
   };
 }
 
-/** Produit une reponse au format de l'API trajets, comme si elle venait du service routing. */
-export function generateMockTripsResponse(options: MockTripOptions): TripsResponseDto {
+export interface MockScenarioOptions extends MockTripOptions {
+  id: string;
+  name: string;
+  description: string;
+}
+
+/** Produit un scenario au format de `GET /scenarios/{id}`, comme s'il venait du service routing. */
+export function generateMockScenario(options: MockScenarioOptions): ScenarioDto {
   const resolved: Required<MockTripOptions> = {
     windowStartMs: DEFAULT_NIGHT_START_MS,
     departureWindowMinutes: 90,
     ...options,
   };
   const random = createRandom(resolved.seed);
-  const trips: TripDto[] = [];
+  const journeys: JourneyDto[] = [];
   for (let i = 0; i < resolved.tripCount; i += 1) {
-    trips.push(buildTrip(random, i, resolved));
+    journeys.push(buildJourney(random, i, resolved));
   }
-  return { origin: options.origin, trips };
+  return {
+    id: options.id,
+    name: options.name,
+    description: options.description,
+    metadata_generated: false,
+    origin: options.origin,
+    departure_time: new Date(resolved.windowStartMs).toISOString(),
+    journey_count: journeys.length,
+    journeys,
+  };
 }
