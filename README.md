@@ -38,12 +38,22 @@ Ce projet a été développé dans le cadre du Hackaviz Mobilités 2026 spécial
 Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour l'installation. Pour lancer les services et le frontend :
 
 ```text
-uv sync
+uv sync --all-packages
 cd frontend; npm install; cd ..
 uv run python scripts/run_services.py
 ```
 
 Puis ouvrir <http://localhost:5173>.
+
+## Documentation
+
+La documentation (guide utilisateur, choix métier, architecture) est rédigée avec
+[Zensical](https://zensical.org/) dans [docs/](docs/) :
+
+```text
+uv run zensical serve    # aperçu sur http://localhost:8000
+uv run zensical build    # site statique dans site/
+```
 
 
 ## La licence

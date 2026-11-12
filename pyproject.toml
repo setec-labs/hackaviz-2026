@@ -23,3 +23,8 @@ build-backend = "uv_build"
 
 [tool.uv.workspace]
 members = ["frontend", "services/routing", "services/safety"]
+
+[dependency-groups]
+dev = [
+    "zensical>=0.1.1",
+]
