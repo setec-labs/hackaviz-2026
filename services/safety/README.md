@@ -100,11 +100,13 @@ Source : `src/safety/luminosite.tif`, livré sur la branche `victoria`
 l'unité n'est pas documentée).
 
 Calcul : position WGS84 → reprojection dans le CRS du raster (pyproj) → pixel
-contenant la position → valeur brute (rasterio) → score linéaire `valeur / 100`.
+contenant la position → valeur brute (rasterio) → score logarithmique
+`log(1 + valeur) / log(101)`.
 
-La distribution est très concentrée vers 0 (médiane 0, 95 % des pixels sous
-2,7) : avec cette normalisation linéaire, la plupart des lieux obtiennent un
-score faible (Châtelet ≈ 0,20, Gare du Nord ≈ 0,17, bois de Vincennes ≈ 0,001).
+La distribution brute est très concentrée vers 0 (médiane 0, 95 % des pixels
+sous 2,7). L'échelle logarithmique étale les faibles valeurs : Châtelet ≈ 0,66,
+Gare du Nord ≈ 0,63, Orly ≈ 0,49, bois de Vincennes ≈ 0,02 (contre 0,20, 0,17,
+0,08 et 0,001 avec une échelle linéaire `valeur / 100`).
 Une position hors du raster ou sans donnée (nodata) n'a pas de score. Une valeur
 brute hors de [0, 100] est traitée comme une donnée invalide (503).
 

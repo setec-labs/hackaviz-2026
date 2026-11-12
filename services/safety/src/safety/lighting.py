@@ -23,12 +23,16 @@ LIGHTING_RAW_MAX = 100.0
 
 
 def normalize_lighting(raw_value: float) -> float:
-    """Linear normalization agreed for the hackathon: 0 = darkest, 1 = brightest."""
+    """Logarithmic normalization log(1 + v) / log(1 + max): 0 = darkest, 1 = brightest.
+
+    Raw values are heavily skewed towards 0 (95 % of pixels below 2.7), so a linear scale
+    would compress almost every place near 0; the log scale spreads the low values.
+    """
     if not math.isfinite(raw_value) or not 0.0 <= raw_value <= LIGHTING_RAW_MAX:
         raise IndicatorDataError(
             f"Lighting raw value {raw_value} is outside the expected range [0, {LIGHTING_RAW_MAX:g}]"
         )
-    return raw_value / LIGHTING_RAW_MAX
+    return math.log1p(raw_value) / math.log1p(LIGHTING_RAW_MAX)
 
 
 @dataclass(frozen=True)

@@ -118,7 +118,7 @@ Position WGS84 (EPSG:4326)
     -> reprojection dans le CRS du raster (pyproj, always_xy=True)
     -> pixel contenant la position (transformation affine inverse, arrondi vers le bas)
     -> valeur brute (rasterio, bande 1, nodata masque)
-    -> normalize_lighting : valeur / 100
+    -> normalize_lighting : log(1 + valeur) / log(101)
     -> score [0, 1]
 ```
 
@@ -127,10 +127,12 @@ de 0 a 100 dont l'unite n'est pas documentee, environ 37 % de pixels nodata.
 
 Decisions :
 
-- normalisation **lineaire** `valeur / 100`, choisie par l'equipe. La distribution etant tres
-  concentree vers 0 (mediane 0, 95 % des pixels sous 2,7), la plupart des lieux ont un score
-  faible (Chatelet ~0,20, bois de Vincennes ~0,001). Pour changer de strategie (logarithmique,
-  percentile), modifier uniquement `normalize_lighting`, puis mettre a jour ses tests et la
+- normalisation **logarithmique** `log(1 + valeur) / log(101)` (0 -> 0, 100 -> 1, croissante),
+  choisie par l'equipe a la place de `valeur / 100`. La distribution brute est tres concentree
+  vers 0 (mediane 0, 95 % des pixels sous 2,7) : en lineaire, 98,5 % de Paris tombait sous 0,25
+  (vigilance elevee). En log : Chatelet ~0,66, Gare du Nord ~0,63, Orly ~0,49, bois de
+  Vincennes ~0,02 ; dans Paris, 8 % des pixels sous 0,25 et 74 % entre 0,25 et 0,45. Pour changer
+  de strategie (percentile...), modifier uniquement `normalize_lighting`, puis ses tests et la
   documentation ;
 - position hors raster, nodata ou `NaN` -> `IndicatorUnavailableError` ;
 - valeur brute hors `[0, 100]` -> `IndicatorDataError`, sans la borner ;
