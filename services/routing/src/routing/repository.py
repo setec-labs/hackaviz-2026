@@ -6,6 +6,7 @@ from pathlib import Path
 from pydantic import TypeAdapter, ValidationError
 from pydantic_core import from_json
 
+from routing.optimize import OPTIMIZED_FILENAME, is_up_to_date
 from hackaviz_2026.routing import (
     Scenario,
     ScenarioDocument,
@@ -61,7 +62,10 @@ def describe_scenario(scenario_id: str, document: ScenarioDocument) -> tuple[str
 
 
 class ScenarioRepository:
-    """Reads scenarios stored as `<directory>/<scenario_id>/journeys.json`."""
+    """
+    Reads scenarios stored as `<directory>/<scenario_id>/journeys.json`, preferring the simplified
+    `journeys.min.json` written by `optimize-scenarios` when it is not older than the pipeline file.
+    """
 
     def __init__(self, directory: Path) -> None:
         self._directory = directory
@@ -74,7 +78,7 @@ class ScenarioRepository:
             raise ScenarioDataError("Scenario data directory is unavailable")
 
     def _locate(self, scenario_id: str) -> tuple[Path, tuple[int, int]]:
-        path = self._directory / scenario_id / JOURNEYS_FILENAME
+        path = _scenario_file(self._directory / scenario_id)
         try:
             stat = path.stat()
         except FileNotFoundError as exc:
@@ -141,7 +145,7 @@ class ScenarioRepository:
             raise ScenarioDataError("Scenario data directory is unreadable") from exc
         scenario_ids = []
         for entry in entries:
-            if not (entry / JOURNEYS_FILENAME).is_file():
+            if not ((entry / JOURNEYS_FILENAME).is_file() or (entry / OPTIMIZED_FILENAME).is_file()):
                 continue
             try:
                 scenario_ids.append(_scenario_id_adapter.validate_python(entry.name))
@@ -156,6 +160,18 @@ class ScenarioRepository:
     def get_scenario(self, scenario_id: str) -> Scenario:
         self._check_directory()
         return self._read(scenario_id)
+
+
+def _scenario_file(folder: Path) -> Path:
+    source = folder / JOURNEYS_FILENAME
+    optimized = folder / OPTIMIZED_FILENAME
+    if not source.exists() and optimized.is_file():
+        return optimized
+    if optimized.is_file():
+        if is_up_to_date(source, optimized):
+            return optimized
+        logger.warning("%s is older than %s: run optimize-scenarios", optimized, source)
+    return source
 
 
 def _summarize(scenario: Scenario) -> ScenarioSummary:

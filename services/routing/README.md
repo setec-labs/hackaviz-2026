@@ -88,6 +88,32 @@ trajets a lieu à `GET /scenarios/{id}` (erreur 503 si invalide) et dans
 `tests/test_local_data.py`. Seuls les 2 derniers scénarios complets restent en
 mémoire.
 
+### Optimisation des scénarios (à relancer après chaque génération)
+
+Le pipeline garde tous les sommets du réseau (un tous les ~5 m), bien plus que
+la carte n'en affiche. La commande suivante écrit, à côté de chaque
+`journeys.json`, un `journeys.min.json` simplifié au **même format** (validé par
+`ScenarioDocument` en entrée et en sortie) :
+
+```powershell
+uv run --package routing optimize-scenarios                     # seulement les fichiers périmés
+uv run --package routing optimize-scenarios --force --tolerance-m 5
+```
+
+- Chaque étape est simplifiée séparément par un Douglas-Peucker **temporel** :
+  un sommet n'est supprimé que si la position interpolée à son propre instant
+  reste à moins de `--tolerance-m` (10 m par défaut). Arrêts, attentes et
+  changements de vitesse sont conservés ; les bornes d'étape et les
+  `point_range` restent exacts.
+- Données actuelles : ~14 % des points conservés, ~10 Mo au lieu de ~150 Mo par
+  scénario, ouverture en ~0,4 s au lieu de 1 à 5 s ; ~100 s pour les 11 scénarios.
+- L'API lit `journeys.min.json` lorsqu'il n'est pas plus ancien que
+  `journeys.json`, sinon le fichier brut avec un avertissement dans les logs.
+- Les fichiers `journeys.min.json` sont dérivés et ignorés par git.
+  `scripts/run_services.py` lance la commande avant de démarrer routing (sans
+  effet si tout est à jour ; `--skip-optimize` pour l'éviter).
+- Le pipeline (`transit_accessibility.py`, `run_scenarios.py`) n'est pas modifié.
+
 Les contrats Pydantic sont définis dans
 [`src/hackaviz_2026/routing.py`](../../src/hackaviz_2026/routing.py) :
 

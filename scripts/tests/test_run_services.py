@@ -57,6 +57,19 @@ class ParseArgsTest(unittest.TestCase):
             run_services.parse_args(["--only", "unknown"])
 
 
+class PrepareCommandTest(unittest.TestCase):
+    def test_optimizes_scenarios_only_when_routing_is_launched(self) -> None:
+        self.assertEqual(
+            run_services.build_prepare_command(["routing", "frontend"], uv="/bin/uv"),
+            ["/bin/uv", "run", "--package", "routing", "optimize-scenarios"],
+        )
+        self.assertIsNone(run_services.build_prepare_command(["safety", "frontend"], uv="uv"))
+
+    def test_optimization_can_be_skipped(self) -> None:
+        self.assertFalse(run_services.parse_args([]).skip_optimize)
+        self.assertTrue(run_services.parse_args(["--skip-optimize"]).skip_optimize)
+
+
 class PrerequisitesTest(unittest.TestCase):
     def test_requires_frontend_dependencies(self) -> None:
         specs = run_services.build_specs(["frontend"], reload=False, uv="uv", npm="npm")

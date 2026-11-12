@@ -5,7 +5,8 @@ Usage, from the repository root:
     uv run python scripts/run_services.py
     uv run python scripts/run_services.py --only safety frontend --reload
 
-Every service output is prefixed with its name. Ctrl+C stops all services; if one
+Before starting routing, the scenario files are optimized (`optimize-scenarios`, a no-op when
+they are up to date); use --skip-optimize to bypass it. Every service output is prefixed with its name. Ctrl+C stops all services; if one
 service exits, the others are stopped too.
 """
 
@@ -61,6 +62,13 @@ def build_specs(names: Sequence[str], reload: bool, uv: str, npm: str) -> list[S
     return specs
 
 
+def build_prepare_command(names: Sequence[str], uv: str) -> list[str] | None:
+    """Command refreshing the simplified scenario files read by the routing API, if routing is launched."""
+    if "routing" not in names:
+        return None
+    return [uv, "run", "--package", "routing", "optimize-scenarios"]
+
+
 def find_executable(name: str) -> str:
     path = shutil.which(name)
     if path is None:
@@ -84,6 +92,9 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help=f"services to launch among {', '.join(SERVICE_NAMES)} (default: all)",
     )
     parser.add_argument("--reload", action="store_true", help="restart the Python services on code changes")
+    parser.add_argument(
+        "--skip-optimize", action="store_true", help="do not refresh the optimized scenario files before routing"
+    )
     return parser.parse_args(argv)
 
 
@@ -189,6 +200,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     except LaunchError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
+
+    prepare = None if args.skip_optimize else build_prepare_command(args.only, uv)
+    if prepare is not None:
+        print("[prepare] optimizing routing scenarios (no-op when up to date)", flush=True)
+        if subprocess.run(prepare, cwd=REPO_ROOT, check=False).returncode != 0:
+            # The routing API falls back to the raw pipeline files, only slower.
+            print("[prepare] scenario optimization failed: routing will read the raw files", file=sys.stderr)
 
     runner = ServiceRunner(specs)
     exit_code = 0

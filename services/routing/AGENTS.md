@@ -48,14 +48,23 @@ fonctions `def`, executees hors de la boucle evenementielle par FastAPI.
    ignorant le fichier.
 
 Le repository garde en cache, invalides par `(mtime_ns, size)`, les resumes de
-tous les scenarios et les 2 derniers scenarios complets (LRU, ~150 Mo de JSON
-chacun) : ne pas ajouter d'autre cache sans invalidation. `list_scenarios` lit
+tous les scenarios et les 2 derniers scenarios complets (LRU, ~10 Mo de JSON
+optimise chacun) : ne pas ajouter d'autre cache sans invalidation. `list_scenarios` lit
 seulement l'en-tete (`ScenarioDocumentHeader`, JSON partiel sur 64 Ko) et compte
 les `journey_id` ; il retombe sur une lecture complete si l'en-tete est
 incomplet ou si les metadonnees doivent etre generees. Ne pas revenir a une
 validation complete pour la liste (~30 s sur les donnees reelles). `get_routing_service` est
 memoise par `lru_cache` : appeler `get_routing_service.cache_clear()` dans les
 tests qui modifient `ROUTING_SCENARIOS_DIR`.
+
+Optimisation (`routing/optimize.py`, commande `optimize-scenarios`) : derive un
+`journeys.min.json` simplifie (Douglas-Peucker temporel par etape, 10 m) au meme
+contrat `ScenarioDocument`, valide avant ecriture atomique. Le repository le
+prefere quand son mtime >= celui de `journeys.json`, sinon lit le brut et
+journalise un avertissement. Ces fichiers sont ignores par git et regeneres par
+`scripts/run_services.py`. Toute nouvelle etape de preparation des donnees doit
+suivre ce modele : script reproductible et idempotent, sortie validee, source du
+pipeline jamais modifiee, repli sur la source si la sortie manque ou est perimee.
 
 L'ancien format `data/routing/scenarios/<id>.json` (un trajet par scenario) est
 abandonne.
