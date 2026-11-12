@@ -50,6 +50,28 @@ uv run zensical serve     # aperçu sur http://localhost:8000, rechargé à chaq
 uv run zensical build     # site statique dans site/ (non versionné)
 ```
 
+## Intégration continue et publication
+
+Le workflow [`.github/workflows/ci.yml`](https://github.com/setec-labs/hackaviz-2026/blob/develop/.github/workflows/ci.yml)
+s'exécute à chaque push sur `develop` ou `main`, et à chaque pull request qui les cible :
+
+1. **Tests Python** (safety, routing, scripts) et **tests frontend** (typecheck, Vitest). Les données
+   Git LFS ne sont pas téléchargées : les tests qui en dépendent sont ignorés.
+2. **Documentation**, après des tests réussis, pour les pushs uniquement : `scripts/build_pages.py`
+   construit les deux versions et les publie sur GitHub Pages.
+
+| Branche | Adresse |
+|---|---|
+| `main` (stable) | racine du site |
+| `develop` | `/dev/`, avec un bandeau « Documentation de développement » |
+
+Les deux versions sont reconstruites à chaque déploiement, puisque GitHub Pages n'héberge qu'un site.
+Tant que `main` n'a pas de documentation, la racine redirige vers `/dev/`.
+
+!!! note "Réglages GitHub nécessaires (une seule fois)"
+    - *Settings → Pages → Source* : **GitHub Actions**.
+    - *Settings → Environments → github-pages* : autoriser la branche **develop** en plus de `main`.
+
 ## Règles de contribution
 
 - **Git** : branche personnelle → `develop` → `main`. Pas de modification directe de `main`.
