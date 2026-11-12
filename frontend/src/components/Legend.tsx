@@ -11,7 +11,7 @@ function rangeLabel(level: SafetyLevel, index: number): string {
 }
 
 /** Legende repliable : chaque couleur est associee a un libelle, une plage et une taille de point. */
-export function Legend() {
+export function Legend({ safetySimulated }: { safetySimulated: boolean }) {
   const levels = [...SAFETY_LEVELS, UNAVAILABLE_LEVEL];
   const gradient = [...SAFETY_LEVELS]
     .reverse()
@@ -50,6 +50,11 @@ export function Legend() {
           ))}
         </ul>
         <p className="mt-2 text-[11px] leading-snug text-ink-muted">
+          {safetySimulated
+            ? "Indice simulé, sans lien avec des lieux réels."
+            : "Indice actuellement calculé à partir de l'éclairage nocturne uniquement."}
+        </p>
+        <p className="mt-1 text-[11px] leading-snug text-ink-muted">
           {SAFETY_INDEX_DISCLAIMER} La taille du point de tête augmente avec le niveau de vigilance.
         </p>
       </div>

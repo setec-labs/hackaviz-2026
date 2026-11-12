@@ -4,8 +4,8 @@ import type { SafetyIndexRequestDto } from "../contracts";
 import { parseSafetyIndexResponse, parseTripsResponse } from "../validation";
 
 /*
- * Clients des futures API FastAPI. Les routes ci-dessous sont PROVISOIRES et devront
- * etre alignees sur les services `services/routing` et `services/safety`.
+ * Clients des API FastAPI. `POST /safety-index` est servi par `services/safety`.
+ * `GET /trips` est PROVISOIRE : a aligner sur `services/routing` lorsqu'il l'exposera.
  */
 
 const SAFETY_BATCH_SIZE = 5000;

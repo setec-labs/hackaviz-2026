@@ -1,7 +1,8 @@
 /**
- * Contrats JSON attendus des futures API FastAPI.
- * Ils refletent des modeles Pydantic (noms en snake_case) et sont PROVISOIRES :
- * a aligner avec les modeles partages de `src/hackaviz_2026/` lorsqu'ils seront definis.
+ * Contrats JSON des API FastAPI, refletant des modeles Pydantic (noms en snake_case).
+ * - safety : implemente, aligne sur `SafetyIndexRequest` / `SafetyIndexResponse`
+ *   de `src/hackaviz_2026/models.py` ;
+ * - trajets : PROVISOIRE, la route `GET /trips` n'existe pas encore dans `services/routing`.
  */
 
 export interface GeoPointDto {

@@ -4,8 +4,10 @@ Cette brique contient l'interface de visualisation du projet Hackaviz Mobilités
 interactive des trajets de nuit en Île-de-France, animés dans le temps et colorés selon un indicateur lié au
 sentiment de sécurité.
 
-Le prototype actuel fonctionne **sans backend** : les deux futures API FastAPI (trajets et indice) sont
-remplacées par des données simulées.
+Par défaut, les **trajets sont simulés** (l'API trajets n'existe pas encore) et l'**indice provient du
+service safety** (`POST /safety-index`, port 8002). Il est actuellement calculé à partir du seul éclairage
+nocturne. Sans service safety démarré, les trajets s'affichent en « non disponible » ; utiliser
+`?safetySource=mock` pour travailler entièrement sans backend.
 
 > L'indice affiché est un **indicateur**. Il ne mesure pas objectivement le danger d'un lieu. Les valeurs
 > simulées sont synthétiques et sans lien avec des lieux réels.
@@ -50,6 +52,9 @@ cd frontend
 npm run dev
 ```
 
+Pour lancer en même temps les services FastAPI, utiliser depuis la racine du repository
+`uv run python scripts/run_services.py`.
+
 Puis ouvrir <http://localhost:5173>. Le fond de carte nécessite un accès Internet ; en son absence, les
 trajets restent affichés sur un fond uni.
 
@@ -66,12 +71,15 @@ npm run preview     # sert le build de production
 
 | Paramètre | Effet | Exemple |
 |---|---|---|
+| `source` | source des trajets : `mock` (défaut) ou `api` | `?source=api` |
+| `safetySource` | source de l'indice : `api` (défaut) ou `mock` | `?safetySource=mock` |
 | `trips` | nombre de trajets simulés (0 à 20 000) | `?trips=3000` |
 | `seed` | graine des données simulées | `?seed=7` |
 | `latency` | latence simulée des API, en ms | `?latency=0` |
 | `mockError` | simule la panne d'un service (`trips` ou `safety`) | `?mockError=safety` |
 
-Le nombre de trajets par défaut peut aussi être défini avec `VITE_MOCK_TRIP_COUNT` (voir `.env.example`).
+Les valeurs par défaut peuvent aussi être définies avec `VITE_DATA_SOURCE`, `VITE_SAFETY_SOURCE` et
+`VITE_MOCK_TRIP_COUNT` (voir `.env.example`). Le badge en haut à gauche indique ce qui est simulé.
 
 ### Utilisation
 
@@ -106,7 +114,7 @@ frontend/
     │   ├── validation.ts      # validation des réponses + conversion vers le domaine
     │   ├── clients.ts         # interfaces TripsClient / SafetyIndexClient
     │   ├── http/              # clients FastAPI (fetch)
-    │   └── index.ts           # createDataClients : choix mock / API
+    │   └── index.ts           # createDataClients : choix mock / API, source par source
     ├── mocks/                 # données simulées (trajets, champ d'indice, clients mock)
     ├── data/                  # chargement (états loading/error/success) et préparation pour le rendu
     ├── simulation/            # horloge de simulation commune + préréglages de vitesse
@@ -160,25 +168,20 @@ Toutes les données simulées sont dans [`src/mocks/`](src/mocks/) :
 
 Les données sont déterministes pour une graine donnée et ne sont jamais codées dans les composants React.
 
-## Remplacer les mocks par les API FastAPI
+## Brancher les API FastAPI
 
-1. Implémenter côté services les routes attendues (contrats dans `src/api/contracts.ts`, **provisoires**) :
-   - `GET {VITE_TRIPS_API_URL}/trips?latitude=..&longitude=..` → `TripsResponseDto`
-   - `POST {VITE_SAFETY_API_URL}/safety-index` avec `{ "points": [...] }` → `SafetyIndexResponseDto`
-     (indices dans l'ordre des points, `value` entre 0 et 1 ou `null`).
-2. Aligner ces contrats avec les modèles Pydantic partagés de `src/hackaviz_2026/` et ajuster
-   `contracts.ts`, `validation.ts` et, si besoin, les routes dans `src/api/http/fastApiClients.ts`.
-3. Créer un fichier `frontend/.env.local` :
+Le choix entre mock et API se fait uniquement dans `src/api/index.ts` (`createDataClients`), séparément
+pour les trajets (`VITE_DATA_SOURCE` / `?source=`) et pour l'indice (`VITE_SAFETY_SOURCE` /
+`?safetySource=`). Aucun composant, couche ou hook n'a besoin d'être modifié.
 
-   ```text
-   VITE_DATA_SOURCE=api
-   VITE_TRIPS_API_URL=http://localhost:8001
-   VITE_SAFETY_API_URL=http://localhost:8002
-   ```
-
-   (ou ajouter `?source=api` à l'URL). Activer CORS sur les services FastAPI pour l'origine du frontend.
-4. Aucun composant, couche ou hook n'a besoin d'être modifié : le choix se fait uniquement dans
-   `src/api/index.ts` (`createDataClients`).
+- **Indice (branché)** : `POST {VITE_SAFETY_API_URL}/safety-index` avec `{ "points": [...] }` →
+  `SafetyIndexResponseDto` (indices dans l'ordre des points, `value` entre 0 et 1 ou `null`), servi par
+  `services/safety`, qui autorise par CORS l'origine `http://localhost:5173`. Le client envoie des lots
+  de 5 000 points au plus.
+- **Trajets (provisoire)** : `GET {VITE_TRIPS_API_URL}/trips?latitude=..&longitude=..` → `TripsResponseDto`.
+  Cette route n'existe pas encore dans `services/routing`. Une fois implémentée, aligner `contracts.ts`,
+  `validation.ts` et `src/api/http/fastApiClients.ts` sur les modèles Pydantic de `src/hackaviz_2026/`,
+  puis passer `VITE_DATA_SOURCE=api` dans `frontend/.env.local`.
 
 ## Où travailler ?
 

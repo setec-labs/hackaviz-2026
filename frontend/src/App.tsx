@@ -45,6 +45,7 @@ export function App() {
   }, [clock]);
 
   const handleOriginChange = useCallback((point: GeoPoint) => setOrigin(point), []);
+  const simulatedLabel = getSimulatedLabel(clients.tripsSimulated, clients.safetySimulated);
 
   return (
     <main className="relative h-full w-full overflow-hidden bg-night text-ink">
@@ -63,16 +64,16 @@ export function App() {
               Trajets de nuit <span className="text-trip">·</span> Île-de-France
             </h1>
             <p className="mt-0.5 text-xs text-ink-muted">
-              {clients.isSimulated && (
+              {simulatedLabel && (
                 <span className="mr-1.5 rounded border border-highlight/60 px-1 py-px text-[10px] font-semibold tracking-wide text-highlight uppercase">
-                  Données simulées
+                  {simulatedLabel}
                 </span>
               )}
               Cliquez sur la carte pour changer le point de départ.
             </p>
           </div>
           <div className="mr-11">
-            <Legend />
+            <Legend safetySimulated={clients.safetySimulated} />
           </div>
         </header>
 
@@ -100,6 +101,13 @@ export function App() {
       )}
     </main>
   );
+}
+
+function getSimulatedLabel(tripsSimulated: boolean, safetySimulated: boolean): string | null {
+  if (tripsSimulated && safetySimulated) return "Données simulées";
+  if (tripsSimulated) return "Trajets simulés";
+  if (safetySimulated) return "Indice simulé";
+  return null;
 }
 
 function Notice({ children }: { children: ReactNode }) {

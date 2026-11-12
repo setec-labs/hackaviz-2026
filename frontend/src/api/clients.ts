@@ -20,6 +20,8 @@ export interface SafetyIndexClient {
 export interface DataClients {
   trips: TripsClient;
   safety: SafetyIndexClient;
-  /** Indique a l'interface que les donnees affichees sont simulees. */
-  isSimulated: boolean;
+  /** Indique a l'interface que les trajets affiches sont simules. */
+  tripsSimulated: boolean;
+  /** Indique a l'interface que l'indice de securite est simule. */
+  safetySimulated: boolean;
 }
