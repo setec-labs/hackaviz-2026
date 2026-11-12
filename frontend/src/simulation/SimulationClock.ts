@@ -1,34 +1,35 @@
 /**
- * Horloge de simulation unique partagee par toutes les couches animees.
+ * Shared simulation clock for all animated layers.
  *
- * - Le temps simule est exprime en secondes relatives a `startTime`/`endTime` (cf. dataset).
- * - Une seule boucle requestAnimationFrame fait avancer le temps ; aucun timer par trajet.
- * - `onFrame` notifie a chaque image (rendu deck.gl, hors React).
- * - `subscribe` notifie React a frequence reduite pour eviter un rendu par image.
+ * Time is expressed in dataset-relative seconds. One animation-frame loop
+ * notifies `onFrame` listeners every frame and React subscribers less often.
  */
 
+/** Immutable clock state exposed to React subscribers. */
 export interface ClockSnapshot {
   currentTime: number;
   startTime: number;
   endTime: number;
   isPlaying: boolean;
-  /** Nombre de secondes reelles pour 1 heure simulee. */
+  /** Number of real seconds per simulated hour. */
   realSecondsPerSimHour: number;
 }
 
+/** Animation-frame scheduler, injectable for tests. */
 export interface FrameScheduler {
   request(callback: (timestampMs: number) => void): number;
   cancel(handle: number): void;
 }
 
+/** Optional playback speed, UI notification interval and frame scheduler. */
 export interface SimulationClockOptions {
   realSecondsPerSimHour?: number;
-  /** Intervalle minimal (ms reelles) entre deux notifications React pendant la lecture. */
+  /** Minimum real milliseconds between React notifications during playback. */
   uiIntervalMs?: number;
   scheduler?: FrameScheduler;
 }
 
-/** Evite un saut brutal du temps simule apres un onglet en arriere-plan. */
+/** Prevents a large simulated-time jump after a tab returns from the background. */
 const MAX_FRAME_DELTA_MS = 250;
 
 const browserScheduler: FrameScheduler = {
@@ -36,6 +37,7 @@ const browserScheduler: FrameScheduler = {
   cancel: (handle) => cancelAnimationFrame(handle),
 };
 
+/** Drive playback and publish animation frames and throttled UI snapshots. */
 export class SimulationClock {
   private currentTime = 0;
   private startTime = 0;
@@ -60,7 +62,7 @@ export class SimulationClock {
     this.snapshot = this.buildSnapshot();
   }
 
-  /** Secondes simulees ecoulees par seconde reelle. */
+  /** Simulated seconds elapsed per real second. */
   get rate(): number {
     return 3600 / this.realSecondsPerSimHour;
   }
@@ -69,18 +71,26 @@ export class SimulationClock {
     return this.currentTime;
   }
 
+  /** Return the latest UI snapshot for `useSyncExternalStore`. */
   getSnapshot = (): ClockSnapshot => this.snapshot;
 
+  /** Subscribe to UI updates and return an unsubscribe callback. */
   subscribe = (listener: () => void): (() => void) => {
     this.uiListeners.add(listener);
     return () => this.uiListeners.delete(listener);
   };
 
+  /** Subscribe to per-frame simulated time updates and return an unsubscribe callback. */
   onFrame(listener: (time: number) => void): () => void {
     this.frameListeners.add(listener);
     return () => this.frameListeners.delete(listener);
   }
 
+  /**
+   * Set a finite simulation range and reset time to its start.
+   *
+   * @throws RangeError if the range is nonfinite or reversed.
+   */
   setRange(startTime: number, endTime: number): void {
     if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime < startTime) {
       throw new RangeError(`Invalid simulation range [${startTime}, ${endTime}]`);
@@ -92,6 +102,7 @@ export class SimulationClock {
     this.emitUi();
   }
 
+  /** Start playback, restarting at the beginning if the end was reached. */
   play(): void {
     if (this.isPlaying || this.endTime <= this.startTime) {
       return;
@@ -106,6 +117,7 @@ export class SimulationClock {
     this.emitUi();
   }
 
+  /** Pause playback and cancel the scheduled frame. */
   pause(): void {
     if (!this.isPlaying) {
       return;
@@ -123,18 +135,25 @@ export class SimulationClock {
     }
   }
 
+  /** Seek to the start without changing playback state. */
   restart(): void {
     this.currentTime = this.startTime;
     this.emitFrame();
     this.emitUi();
   }
 
+  /** Seek to a time clamped to the current range. */
   seek(time: number): void {
     this.currentTime = Math.min(this.endTime, Math.max(this.startTime, time));
     this.emitFrame();
     this.emitUi();
   }
 
+  /**
+   * Set playback speed as real seconds per simulated hour.
+   *
+   * @throws RangeError if the duration is nonfinite or not positive.
+   */
   setRealSecondsPerSimHour(realSeconds: number): void {
     if (!Number.isFinite(realSeconds) || realSeconds <= 0) {
       throw new RangeError(`Invalid speed: ${realSeconds}`);
@@ -143,7 +162,7 @@ export class SimulationClock {
     this.emitUi();
   }
 
-  /** Fait avancer l'horloge d'une duree reelle. Utilise par la boucle et par les tests. */
+  /** Advance playback by real milliseconds, capped to prevent background-tab jumps. */
   advance(realDeltaMs: number): void {
     if (!this.isPlaying) {
       return;
@@ -158,6 +177,7 @@ export class SimulationClock {
     }
   }
 
+  /** Cancel scheduled work and remove all listeners. */
   dispose(): void {
     this.cancelFrame();
     this.isPlaying = false;

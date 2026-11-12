@@ -47,6 +47,7 @@ function RestartIcon() {
 const iconButton =
   "flex h-10 w-10 items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection disabled:cursor-not-allowed disabled:opacity-40";
 
+/** Provide playback, timeline, speed and audio controls for the current dataset. */
 export function ControlPanel({ clock, dataset, chime }: ControlPanelProps) {
   const snapshot = useClockSnapshot(clock);
   const hasData = dataset !== null && dataset.trips.length > 0;

@@ -2,18 +2,19 @@ import { isImplausibleTrip } from "../domain/tripPlausibility";
 import type { GeoPoint, SafetyIndexValue, Trip } from "../domain/types";
 
 /**
- * Valeur provisoire attribuee aux positions hors marche et attente (transport en commun, velo...).
- * Ce n'est pas une mesure : le raster d'eclairage ne decrit que l'environnement d'un pieton.
+ * Temporary value for positions outside walking and waiting, not an actual
+ * measurement: the lighting raster describes a pedestrian's environment.
  */
-// TODO: interroger plus tard le service safety autrement pour les modes autres que la marche et
-// l'attente (indicateurs propres aux vehicules, aux stations...), puis supprimer cette valeur.
+// TODO: query safety differently for non-pedestrian modes (vehicle or station indicators)
+// and remove this placeholder.
 export const NON_PEDESTRIAN_SAFETY_VALUE = 0.5;
 
-/** Vrai pour les troncons ou l'usager est a pied dans l'espace public : marche et attente. */
+/** Return whether a leg represents walking or waiting in public space. */
 export function isPedestrianMode(mode: string): boolean {
   return mode === "wait" || mode === "walk" || mode.startsWith("walk_");
 }
 
+/** Apply the duration threshold to the trip's first and last timestamps. */
 export function isImplausible(trip: Trip): boolean {
   const first = trip.timestampsMs[0] ?? 0;
   const last = trip.timestampsMs[trip.timestampsMs.length - 1] ?? first;
@@ -21,8 +22,8 @@ export function isImplausible(trip: Trip): boolean {
 }
 
 /**
- * Positions a envoyer au service safety : uniquement celles des troncons de marche et d'attente
- * des trajets plausibles (les trajets de plus de 2 h sont affiches en couleur neutre).
+ * Collect walking and waiting vertices from plausible trips in trip/vertex order.
+ * Trips over two hours are displayed neutrally and are not evaluated.
  */
 export function collectPedestrianPoints(trips: Trip[]): GeoPoint[] {
   const points: GeoPoint[] = [];
@@ -36,10 +37,11 @@ export function collectPedestrianPoints(trips: Trip[]): GeoPoint[] {
 }
 
 /**
- * Reconstitue un indice par sommet, dans l'ordre des trajets puis des positions.
- * `pedestrianValues` suit l'ordre de `collectPedestrianPoints` ; null si le service a echoue,
- * auquel cas les positions pietonnes restent « non disponibles ». Les trajets peu plausibles
- * ne sont pas evalues : leurs positions valent null.
+ * Reconstruct one index per vertex in trip/vertex order.
+ *
+ * @param pedestrianValues - Values in {@link collectPedestrianPoints} order, or
+ * null after a safety service failure. Pedestrian values then remain unavailable;
+ * implausible trips always have null values.
  */
 export function mergeSafetyValues(trips: Trip[], pedestrianValues: SafetyIndexValue[] | null): SafetyIndexValue[] {
   const values: SafetyIndexValue[] = [];

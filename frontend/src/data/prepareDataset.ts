@@ -4,42 +4,45 @@ import { implausibleTripColor, isImplausibleTrip } from "../domain/tripPlausibil
 import type { Rgba } from "../theme/palette";
 import { buildArrivals, buildConstellation, type Arrival, type ConstellationLink } from "./arrivals";
 
-/** Trajet pret a etre rendu par deck.gl (temps en secondes relatives a `originMs`). */
+/** A deck.gl-ready trip with times in seconds relative to the dataset origin. */
 export interface RenderTrip {
   id: string;
   destinationName: string | null;
   destinationPopulation: number | null;
   mode: string | null;
   path: [number, number][];
-  /** Secondes depuis `RenderDataset.originMs` (Float32 cote GPU : rester sur des valeurs moderees). */
+  /** Seconds since `RenderDataset.originMs`, kept small for GPU Float32 precision. */
   timestamps: number[];
-  /** Indice par sommet ; null si indisponible ou si le service indice a echoue. */
+  /** Index per vertex; null if unavailable or if the index service failed. */
   safety: SafetyIndexValue[];
-  /** Trajet de plus de 2 h : affiche en couleur neutre, sans indice. */
+  /** Whether the trip exceeds two hours and is displayed neutrally. */
   implausible: boolean;
-  /** Couleur par sommet derivee de l'indice (neutre si le trajet est peu plausible). */
+  /** Color per vertex, neutral for implausible trips. */
   colors: Rgba[];
-  /** Rayon du marqueur par sommet, derive du niveau d'indicateur. */
+  /** Marker radius per vertex, derived from the index level. */
   markerRadii: number[];
   startTime: number;
   endTime: number;
 }
 
+/** Precomputed trip, arrival and constellation data for the rendering layers. */
 export interface RenderDataset {
   trips: RenderTrip[];
-  /** Arrivees (bulles), triees par instant d'arrivee. */
+  /** Arrival bubbles sorted by arrival time. */
   arrivals: Arrival[];
-  /** Liens de la constellation, tries par instant d'apparition. */
+  /** Constellation links sorted by appearance time. */
   constellation: ConstellationLink[];
-  /** Instant de reference (ms epoch) correspondant au temps simule 0. */
+  /** Reference epoch timestamp in milliseconds for simulated time zero. */
   originMs: number;
   startTime: number;
   endTime: number;
 }
 
 /**
- * Combine les trajets et les indices (aplatis dans l'ordre des sommets) en un jeu
- * de donnees de rendu. `safetyValues` vaut null si l'indice n'a pas pu etre charge.
+ * Prepare trip colors, relative times, arrivals and links for rendering.
+ *
+ * @param trips - Journeys in display order.
+ * @param safetyValues - Indices flattened in trip/vertex order, or null on failure.
  */
 export function prepareDataset(trips: Trip[], safetyValues: SafetyIndexValue[] | null): RenderDataset {
   const originMs = trips.reduce((min, trip) => Math.min(min, trip.startTimeMs), Number.POSITIVE_INFINITY);
@@ -80,6 +83,7 @@ export function prepareDataset(trips: Trip[], safetyValues: SafetyIndexValue[] |
   return { trips: renderTrips, arrivals, constellation: buildConstellation(arrivals), originMs, startTime: 0, endTime };
 }
 
+/** Count trips active at the given relative simulation time in seconds. */
 export function countActiveTrips(dataset: RenderDataset, time: number): number {
   let count = 0;
   for (const trip of dataset.trips) {

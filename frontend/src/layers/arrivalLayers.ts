@@ -16,7 +16,7 @@ export const ARRIVAL_LAYER_IDS = {
 const withAlpha = ([r, g, b]: Rgba, alpha: number): Rgba => [r, g, b, alpha];
 const getPosition = (arrival: Arrival) => arrival.position;
 
-/** Garde la meme reference de tableau tant que le nombre d'elements visibles ne change pas. */
+/** Preserve the visible prefix reference until its source or count changes. */
 class PrefixCache<T> {
   private source: readonly T[] | null = null;
   private count = -1;
@@ -35,20 +35,20 @@ class PrefixCache<T> {
 const arrivalCache = new PrefixCache<Arrival>();
 const linkCache = new PrefixCache<ConstellationLink>();
 
+/** Inputs for arrival layers at one simulation frame. */
 export interface ArrivalLayerInputs {
   dataset: RenderDataset;
   time: number;
   arrivedCount: number;
   flashes: ArrivalFlash[];
-  /** Temps reel en ms, pour le scintillement. */
+  /** Real time in milliseconds, used for twinkling and flashes. */
   nowMs: number;
 }
 
 /**
- * Bulles d'arrivee facon constellation : halo et lueur superposes autour d'un coeur net,
- * liens fins entre etoiles voisines, et anneau qui s'etend a l'apparition.
- * Taille = population, couleur = indice moyen des 10 pires minutes du trajet. Les trajets peu
- * plausibles (plus de 2 h) n'ont ni halo ni lueur : simple anneau neutre, sans remplissage.
+ * Build arrival halos, cores, links and expanding flashes for one frame.
+ * Bubble size reflects population and color reflects the worst-ten-minute
+ * index. Implausible trips use a hollow neutral ring without halo or glow.
  */
 export function buildArrivalLayers({ dataset, time, arrivedCount, flashes, nowMs }: ArrivalLayerInputs): Layer[] {
   const arrived = arrivalCache.get(dataset.arrivals, arrivedCount);

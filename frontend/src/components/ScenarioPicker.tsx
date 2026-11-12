@@ -7,7 +7,7 @@ interface ScenarioPickerProps {
   onSelect: (scenarioId: string) => void;
 }
 
-/** Scenario affiche : alternative au clavier aux points de depart de la carte. */
+/** Provide a keyboard-accessible alternative to selecting map origins. */
 export function ScenarioPicker({ scenarios, selected, onSelect }: ScenarioPickerProps) {
   const selectId = useId();
   return (

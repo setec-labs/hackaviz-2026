@@ -1,13 +1,13 @@
-/** Intervalle minimal entre deux tintements, pour ne pas saturer lors des arrivees groupees. */
+/** Minimum interval between chimes to avoid saturation during grouped arrivals. */
 const MIN_INTERVAL_MS = 120;
 
 /**
- * Tintement joue a l'apparition d'une bulle d'arrivee (Web Audio, plusieurs voix possibles).
- * Le son ne demarre qu'apres une interaction de l'utilisateur (politique d'autoplay).
+ * Play arrival chimes with Web Audio, respecting browser autoplay restrictions.
+ * Multiple voices may overlap, but starts are rate-limited.
  */
 export class ArrivalChime {
   enabled = true;
-  /** Volume entre 0 et 1. */
+  /** Playback volume, normally between 0 and 1. */
   volume = 0.5;
   private context: AudioContext | null = null;
   private buffer: Promise<AudioBuffer | null> | null = null;
@@ -15,7 +15,7 @@ export class ArrivalChime {
 
   constructor(private readonly url: string) {}
 
-  /** `pitch` entre 0 et 1 : 0 = aigu (petite zone), 1 = grave (grande zone). */
+  /** Play with a clamped pitch scale: 0 is higher, 1 is lower. */
   play(pitch = 0.5, nowMs = performance.now()): void {
     if (!this.enabled || this.volume <= 0 || nowMs - this.lastPlayMs < MIN_INTERVAL_MS) return;
     this.lastPlayMs = nowMs;

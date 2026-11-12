@@ -12,15 +12,24 @@ class IndicatorDataError(RuntimeError):
 
 
 class IndicatorProvider(Protocol):
+    """Contract for an indicator that returns a normalized favorability score."""
+
     id: str
     name: str
     description: str
 
     async def evaluate(self, position: Position) -> float:
-        """Return the final normalized score between 0.0 and 1.0.
+        """Evaluate the indicator at a WGS84 position.
 
-        Raise IndicatorUnavailableError when no data covers the position,
-        IndicatorDataError when the source data cannot be used and
-        NotImplementedError while the indicator is not implemented.
+        Args:
+            position: WGS84 latitude and longitude to evaluate.
+
+        Returns:
+            A normalized score in [0, 1], where 1 is the most favorable.
+
+        Raises:
+            IndicatorUnavailableError: No source data covers the position.
+            IndicatorDataError: The source data cannot be used.
+            NotImplementedError: The indicator has not been implemented.
         """
         ...

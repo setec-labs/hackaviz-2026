@@ -1,6 +1,7 @@
-/** Generateur pseudo-aleatoire deterministe (mulberry32) pour des mocks reproductibles. */
+/** Function returning the next pseudo-random number in [0, 1). */
 export type Random = () => number;
 
+/** Create a seeded Mulberry32 generator for reproducible mock data. */
 export function createRandom(seed: number): Random {
   let state = seed >>> 0;
   return () => {
@@ -12,10 +13,16 @@ export function createRandom(seed: number): Random {
   };
 }
 
+/** Draw a value between the supplied bounds using the provided generator. */
 export function randomBetween(random: Random, min: number, max: number): number {
   return min + (max - min) * random();
 }
 
+/**
+ * Draw an item according to its weight.
+ *
+ * @throws Error if the item list is empty.
+ */
 export function pickWeighted<T>(random: Random, items: readonly { value: T; weight: number }[]): T {
   const total = items.reduce((sum, item) => sum + item.weight, 0);
   let threshold = random() * total;
@@ -32,7 +39,7 @@ export function pickWeighted<T>(random: Random, items: readonly { value: T; weig
   return last.value;
 }
 
-/** Hash d'un texte en entier 32 bits, pour deriver une graine a partir d'une position. */
+/** Hash text to an unsigned 32-bit integer for deriving reproducible seeds. */
 export function hashString(text: string): number {
   let hash = 2166136261;
   for (let i = 0; i < text.length; i += 1) {

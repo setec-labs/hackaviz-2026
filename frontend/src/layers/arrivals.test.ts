@@ -29,21 +29,21 @@ function source(id: string, endTime: number, position: [number, number], populat
 describe("worstMinutesSafety", () => {
   it("finds the worst 10 minutes anywhere along the trip", () => {
     expect(ANXIETY_WORST_SECONDS).toBe(600);
-    // 0-30 min favorable, 30-40 min defavorable, 40-60 min favorable : la pire fenetre est au milieu.
+    // The worst window is in the middle: favorable, unfavorable, then favorable.
     const timestamps = [0, 1800, 1800, 2400, 2400, 3600];
     expect(worstMinutesSafety(timestamps, [0.9, 0.9, 0.1, 0.1, 0.9, 0.9])).toBeCloseTo(0.1);
-    // Le pire passage au debut du trajet compte autant qu'a la fin.
+    // The worst passage at the start counts as much as one at the end.
     expect(worstMinutesSafety([0, 600, 600, 3600], [0.2, 0.2, 0.8, 0.8])).toBeCloseTo(0.2);
   });
 
   it("adds up the worst minutes even when they are not consecutive", () => {
-    // Deux passages de 5 minutes a 0.2 separes de 30 minutes a 0.8 : les 10 pires minutes valent 0.2.
+    // Two 5-minute passages at 0.2, separated by 30 minutes at 0.8, average 0.2.
     const timestamps = [0, 300, 300, 2100, 2100, 2400, 2400, 3600];
     expect(worstMinutesSafety(timestamps, [0.2, 0.2, 0.8, 0.8, 0.2, 0.2, 0.8, 0.8])).toBeCloseTo(0.2);
   });
 
   it("averages over 10 minutes rather than keeping a single low point", () => {
-    // 5 minutes a 0.2 entourees de 0.8 : moyenne des 10 pires minutes = 0.5.
+    // Five minutes at 0.2 surrounded by 0.8 give a worst-ten-minute mean of 0.5.
     const timestamps = [0, 1200, 1200, 1500, 1500, 2700];
     expect(worstMinutesSafety(timestamps, [0.8, 0.8, 0.2, 0.2, 0.8, 0.8])).toBeCloseTo(0.5);
   });

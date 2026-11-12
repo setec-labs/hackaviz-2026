@@ -87,7 +87,7 @@ describe("SimulationClock", () => {
     expect(first).toHaveBeenLastCalledWith(clock.time);
     expect(second).toHaveBeenLastCalledWith(clock.time);
     expect(clock.time).toBeCloseTo(0.1);
-    // Une seule requete en attente a la fois, quel que soit le nombre d'abonnes.
+    // Only one frame request is pending at a time, regardless of subscriber count.
     expect(requestSpy).toHaveBeenCalledTimes(3);
   });
 

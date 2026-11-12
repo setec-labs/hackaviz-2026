@@ -8,7 +8,7 @@ import { buildArrivalLayers } from "./arrivalLayers";
 import type { ArrivalTracker } from "./arrivalTracker";
 import type { HeadBuffers } from "./headPositions";
 
-/** Longueur de la trainee, en secondes simulees. */
+/** Trail length in simulated seconds. */
 const TRAIL_LENGTH_SECONDS = 15 * 60;
 
 const getPath = (trip: RenderTrip) => trip.path;
@@ -24,16 +24,17 @@ export const LAYER_IDS = {
   scenarioLabels: "scenario-labels",
 } as const;
 
+/** Data and animation state used to construct one map frame. */
 export interface LayerInputs {
-  /** Null tant que les trajets du scenario selectionne ne sont pas charges. */
+  /** Null until the selected scenario's trips are loaded. */
   dataset: RenderDataset | null;
   heads: HeadBuffers | null;
   time: number;
   scenarios: ScenarioSummary[];
   selectedScenarioId: string | null;
-  /** Suivi des bulles d'arrivee, mis a jour pour `time` par l'appelant. */
+  /** Arrival tracker, updated to `time` by the caller. */
   arrivals?: ArrivalTracker | null;
-  /** Temps reel en ms (animations independantes de la vitesse de simulation). */
+  /** Real time in milliseconds for speed-independent animations. */
   nowMs?: number;
 }
 
@@ -42,7 +43,7 @@ const scenarioPosition = (scenario: ScenarioSummary): [number, number] => [
   scenario.origin.latitude,
 ];
 
-/** Points de depart cliquables ; le scenario selectionne est plein et plus grand (pas seulement colore). */
+/** Build clickable origins, distinguishing the selection by size and fill as well as color. */
 function buildScenarioLayers(scenarios: ScenarioSummary[], selectedScenarioId: string | null): Layer[] {
   const isSelected = (scenario: ScenarioSummary) => scenario.id === selectedScenarioId;
   return [
@@ -84,9 +85,8 @@ function buildScenarioLayers(scenarios: ScenarioSummary[], selectedScenarioId: s
 }
 
 /**
- * Construit les couches pour l'instant `time`. Appelee a chaque image par la boucle de
- * l'horloge : deck.gl compare les props et ne reenvoie au GPU que ce qui a change
- * (essentiellement `currentTime` et les positions de tete).
+ * Build the layers at `time` for the clock's current frame.
+ * deck.gl compares properties so unchanged data does not need to be resent.
  */
 export function buildLayers({
   dataset,
@@ -102,7 +102,7 @@ export function buildLayers({
     return scenarioLayers;
   }
   const headCount = heads.update(dataset, time);
-  // Attenue le fond des itineraires quand le volume augmente pour garder la lisibilite.
+  // Fade background routes as the number of trips grows to preserve legibility.
   const routeAlpha = Math.round(Math.min(46, Math.max(10, 12000 / Math.max(1, dataset.trips.length))));
 
   return [
@@ -160,7 +160,7 @@ export function buildLayers({
       : []),
     new ScatterplotLayer({
       id: LAYER_IDS.heads,
-      // Des vues `subarray` neuves a chaque image forcent deck.gl a reenvoyer les buffers.
+      // New subarray views on each frame make deck.gl refresh the binary buffers.
       data: {
         length: headCount,
         attributes: {

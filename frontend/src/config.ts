@@ -1,10 +1,11 @@
 export type DataSource = "mock" | "api";
 export type MockFailure = "none" | "trips" | "safety";
 
+/** Runtime configuration for independently selected scenario and safety sources. */
 export interface AppConfig {
-  /** Source des scenarios et trajets. */
+  /** Source of scenarios and journeys. */
   dataSource: DataSource;
-  /** Source de l'indice de securite, choisie independamment des trajets. */
+  /** Safety index source, selected independently of the journeys. */
   safetySource: DataSource;
   tripsApiUrl: string;
   safetyApiUrl: string;
@@ -42,10 +43,12 @@ function parseInteger(value: string | null | undefined, fallback: number, min: n
 }
 
 /**
- * Configuration lue depuis les variables Vite (`.env`) et surchargeable par l'URL
- * pour faciliter les tests manuels, par ex. `?source=mock&trips=3000&seed=7&mockError=safety`.
- * Les scenarios viennent de l'API routing et l'indice de l'API safety par defaut ;
- * `?source=mock` et `?safetySource=mock` les simulent independamment.
+ * Load Vite environment settings, with query parameters taking precedence.
+ *
+ * Scenario and safety sources default to their APIs and can be mocked
+ * independently with `source=mock` and `safetySource=mock`.
+ *
+ * @param search - URL query string; defaults to the current page's query.
  */
 export function loadConfig(search: string = window.location.search): AppConfig {
   const params = new URLSearchParams(search);

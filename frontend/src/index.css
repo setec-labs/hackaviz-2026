@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Palette du projet : garder synchronise avec src/theme/palette.ts. */
+/* Keep the project palette synchronized with src/theme/palette.ts. */
 @theme {
   --color-night: #061b3a;
   --color-surface: #0b2f5b;

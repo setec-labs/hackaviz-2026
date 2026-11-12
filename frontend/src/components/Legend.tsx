@@ -10,7 +10,7 @@ function rangeLabel(level: SafetyLevel, index: number): string {
   return `${formatBound(level.minValue)} – ${formatBound(upper)}`;
 }
 
-/** Legende repliable : chaque couleur est associee a un libelle, une plage et une taille de point. */
+/** Show a collapsible legend pairing each color with a label, range and marker size. */
 export function Legend({ safetySimulated }: { safetySimulated: boolean }) {
   const levels = [...SAFETY_LEVELS, UNAVAILABLE_LEVEL];
   const gradient = [...SAFETY_LEVELS]

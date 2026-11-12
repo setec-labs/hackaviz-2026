@@ -79,8 +79,8 @@ function arrivalLines(dataset: RenderDataset, arrival: Arrival): string[] {
 }
 
 /**
- * Infobulle deck.gl : decrit un point de depart de scenario, un trajet et, pour un point
- * courant, l'indicateur associe.
+ * Build a deck.gl tooltip for a scenario origin, trip, arrival or current head.
+ * Dynamic text is escaped before it is included in the HTML.
  */
 export function buildTooltip(
   info: PickingInfo,

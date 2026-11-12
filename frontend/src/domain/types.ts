@@ -1,45 +1,45 @@
-/** Types du domaine utilises par l'application (independants du format des API). */
+/** Domain types used by the application, independent of API wire formats. */
 
-/** Position geographique en degres WGS84. */
+/** WGS84 geographic position in degrees. */
 export interface GeoPoint {
   latitude: number;
   longitude: number;
 }
 
-/** Scenario de trajets : un point et une heure de depart, plusieurs destinations. */
+/** Scenario with one origin and departure time and multiple destinations. */
 export interface ScenarioSummary {
   id: string;
   name: string;
   description: string;
-  /** Vrai si le nom et la description ont ete derives des donnees faute de metadonnees. */
+  /** Whether missing name or description was generated from scenario data. */
   metadataGenerated: boolean;
   origin: GeoPoint;
   departureTimeMs: number;
   journeyCount: number;
 }
 
+/** Domain journey with aligned path, timestamps and per-point modes. */
 export interface Trip {
   id: string;
-  /** Nom de la destination s'il est fourni, sinon null. */
+  /** Destination name, or null if absent. */
   destinationName: string | null;
-  /** Population de la zone de destination si l'API la fournit, sinon null. */
+  /** Destination population, or null if absent. */
   destinationPopulation: number | null;
-  /** Mode de deplacement s'il est fourni par l'API, sinon null. */
+  /** Summarized travel mode, or null if absent. */
   mode: string | null;
-  /** Mode du troncon (`walk_access`, `wait`, `transit`...) auquel appartient chaque position. */
+  /** Mode of the leg containing each position, such as `walk_access`, `wait`, or `transit`. */
   pointModes: string[];
-  /** Debut et fin en millisecondes epoch UTC. */
+  /** Start and end times in UTC epoch milliseconds. */
   startTimeMs: number;
   endTimeMs: number;
-  /** Positions ordonnees, au format deck.gl [longitude, latitude]. */
+  /** Ordered deck.gl positions as [longitude, latitude]. */
   path: [number, number][];
-  /** Timestamp (ms epoch UTC) de chaque position, croissant. */
+  /** Nondecreasing UTC epoch timestamp in milliseconds for each position. */
   timestampsMs: number[];
 }
 
 /**
- * Indice normalise lie au sentiment de securite, entre 0 et 1 (1 = contexte le plus favorable).
- * `null` signifie que l'indicateur n'est pas disponible pour cette position.
- * Il s'agit d'un indicateur, pas d'une mesure objective du danger.
+ * Normalized contextual index in [0, 1], where 1 is most favorable.
+ * `null` means unavailable. This indicator is not an objective measure of danger.
  */
 export type SafetyIndexValue = number | null;

@@ -1,29 +1,30 @@
 import type { GeoPoint, SafetyIndexValue, ScenarioSummary, Trip } from "../domain/types";
 
 /**
- * Point d'entree unique de l'application vers les donnees.
- * Implemente par les mocks (`src/mocks/`) et par les clients FastAPI (`src/api/http/`).
+ * Scenario data access implemented by both mock and FastAPI clients.
  */
 export interface ScenariosClient {
-  /** API 1 : catalogue des scenarios (points de depart cliquables). */
+  /** List the scenarios used to display clickable origin points. */
   listScenarios(signal?: AbortSignal): Promise<ScenarioSummary[]>;
-  /** API 1 : trajets d'un scenario. */
+  /** Load the journeys belonging to a scenario. */
   fetchScenarioTrips(scenarioId: string, signal?: AbortSignal): Promise<Trip[]>;
 }
 
+/** Provides one normalized safety index per input position. */
 export interface SafetyIndexClient {
   /**
-   * API 2 : indice lie au sentiment de securite pour chaque position.
-   * Le resultat a la meme longueur et le meme ordre que `points`.
+   * Return indices in the same order and with the same length as `points`.
+   * A null value means that an indicator is unavailable at that position.
    */
   fetchSafetyIndices(points: GeoPoint[], signal?: AbortSignal): Promise<SafetyIndexValue[]>;
 }
 
+/** Data sources and flags identifying which sources are simulated. */
 export interface DataClients {
   scenarios: ScenariosClient;
   safety: SafetyIndexClient;
-  /** Indique a l'interface que les scenarios et trajets affiches sont simules. */
+  /** Whether the displayed scenarios and journeys are simulated. */
   tripsSimulated: boolean;
-  /** Indique a l'interface que l'indice de securite est simule. */
+  /** Whether the safety index is simulated. */
   safetySimulated: boolean;
 }

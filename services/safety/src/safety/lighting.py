@@ -24,7 +24,17 @@ LIGHTING_RAW_MAX = 100.0
 
 
 def normalize_lighting(raw_value: float) -> float:
-    """Linear normalization of the log-scaled raster value: 0 = darkest, 1 = brightest."""
+    """Normalize an already log-scaled raster value without applying another log.
+
+    Args:
+        raw_value: Finite raster value in [0, 100].
+
+    Returns:
+        A score in [0, 1], from darkest to brightest.
+
+    Raises:
+        IndicatorDataError: The raw value is nonfinite or outside [0, 100].
+    """
     if not math.isfinite(raw_value) or not 0.0 <= raw_value <= LIGHTING_RAW_MAX:
         raise IndicatorDataError(
             f"Lighting raw value {raw_value} is outside the expected range [0, {LIGHTING_RAW_MAX:g}]"
@@ -34,12 +44,25 @@ def normalize_lighting(raw_value: float) -> float:
 
 @dataclass(frozen=True)
 class LightingRaster:
+    """An in-memory raster and the transform from WGS84 to its CRS."""
+
     values: np.ma.MaskedArray
     transform: Affine
     to_raster_crs: Transformer
 
     @classmethod
     def open(cls, path: Path) -> "LightingRaster":
+        """Load the first raster band and prepare a WGS84 coordinate transform.
+
+        Args:
+            path: Path to the lighting raster.
+
+        Returns:
+            The raster data, affine transform and coordinate transformer.
+
+        Raises:
+            IndicatorDataError: The raster cannot be loaded or has no CRS.
+        """
         try:
             with rasterio.open(path) as dataset:
                 if dataset.crs is None:
@@ -54,6 +77,18 @@ class LightingRaster:
         return cls(values=values, transform=transform, to_raster_crs=to_raster_crs)
 
     def raw_value(self, position: Position) -> float:
+        """Read the pixel containing a WGS84 position.
+
+        Args:
+            position: Position to project into the raster CRS.
+
+        Returns:
+            The unnormalized raster value at the containing pixel.
+
+        Raises:
+            IndicatorUnavailableError: The position cannot be projected, is
+                outside the raster, or falls on a pixel without valid data.
+        """
         x, y = self.to_raster_crs.transform(position.longitude, position.latitude)
         if not (math.isfinite(x) and math.isfinite(y)):
             raise IndicatorUnavailableError("Position cannot be projected to the lighting raster")
@@ -69,6 +104,8 @@ class LightingRaster:
 
 
 class LightingIndicatorProvider:
+    """Evaluate lighting from a lazily loaded, already log-scaled raster."""
+
     id = "lighting"
     name = "Lighting"
     description = (
@@ -87,4 +124,5 @@ class LightingIndicatorProvider:
         return self._raster
 
     async def evaluate(self, position: Position) -> float:
+        """Return the normalized lighting score at the given WGS84 position."""
         return normalize_lighting(self._get_raster().raw_value(position))

@@ -56,6 +56,7 @@ app.add_middleware(
 
 @lru_cache(maxsize=1)
 def get_indicator_service() -> IndicatorService:
+    """Create and cache the service with its configured lighting provider."""
     raster_path = _read_path_setting("SAFETY_LIGHTING_RASTER", DEFAULT_LIGHTING_RASTER)
     return IndicatorService((LightingIndicatorProvider(raster_path),))
 
@@ -65,6 +66,7 @@ Service = Annotated[IndicatorService, Depends(get_indicator_service)]
 
 @app.exception_handler(RequestValidationError)
 async def request_validation_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Convert validation issues to the shared, serializable HTTP 422 format."""
     errors = [
         ValidationIssue(type=error["type"], loc=error["loc"], msg=error["msg"])
         for error in exc.errors()
@@ -79,11 +81,13 @@ async def request_validation_handler(request: Request, exc: RequestValidationErr
 async def indicator_not_implemented_handler(
     request: Request, exc: IndicatorNotImplementedError
 ) -> JSONResponse:
+    """Return HTTP 501 when an indicator is not implemented."""
     return JSONResponse(status_code=501, content=ErrorResponse(detail=str(exc)).model_dump())
 
 
 @app.exception_handler(UnknownIndicatorError)
 async def unknown_indicator_handler(request: Request, exc: UnknownIndicatorError) -> JSONResponse:
+    """Return HTTP 400 for an unknown indicator ID."""
     return JSONResponse(status_code=400, content=ErrorResponse(detail=str(exc)).model_dump())
 
 
@@ -91,16 +95,19 @@ async def unknown_indicator_handler(request: Request, exc: UnknownIndicatorError
 async def indicator_unavailable_handler(
     request: Request, exc: IndicatorUnavailableError
 ) -> JSONResponse:
+    """Return HTTP 404 when no data covers a position."""
     return JSONResponse(status_code=404, content=ErrorResponse(detail=str(exc)).model_dump())
 
 
 @app.exception_handler(IndicatorDataError)
 async def indicator_data_handler(request: Request, exc: IndicatorDataError) -> JSONResponse:
+    """Return HTTP 503 when an indicator's source data cannot be used."""
     return JSONResponse(status_code=503, content=ErrorResponse(detail=str(exc)).model_dump())
 
 
 @app.get("/indicators", response_model=list[Indicator])
 async def list_indicators(service: Service) -> list[Indicator]:
+    """List the available indicator metadata."""
     return service.list_indicators()
 
 
@@ -114,6 +121,7 @@ async def list_indicators(service: Service) -> list[Indicator]:
     },
 )
 async def evaluate(request: EvaluateRequest, service: Service) -> EvaluateResponse:
+    """Evaluate every indicator at the requested position."""
     return await service.evaluate(request.position)
 
 
@@ -128,6 +136,7 @@ async def evaluate(request: EvaluateRequest, service: Service) -> EvaluateRespon
     },
 )
 async def score(request: ScoreRequest, service: Service) -> ScoreResponse:
+    """Calculate a normalized weighted indicator score."""
     return await service.score(request)
 
 
@@ -137,4 +146,5 @@ async def score(request: ScoreRequest, service: Service) -> ScoreResponse:
     responses={501: {"model": ErrorResponse}, 503: {"model": ErrorResponse}},
 )
 async def safety_index(request: SafetyIndexRequest, service: Service) -> SafetyIndexResponse:
+    """Calculate one equal-weight index per requested position."""
     return await service.safety_index(request.points)

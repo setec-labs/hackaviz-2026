@@ -14,7 +14,7 @@ import { buildTooltip } from "../layers/tooltip";
 import type { SimulationClock } from "../simulation/SimulationClock";
 import { applyNightPalette, BASEMAP_STYLE_URL, FALLBACK_STYLE, INITIAL_VIEW } from "./basemap";
 
-// MapLibre resout son worker relativement a son propre module, ce que le pre-bundling Vite casse.
+// Vite pre-bundling breaks MapLibre's relative worker resolution, so set the worker URL explicitly.
 setWorkerUrl(maplibreWorkerUrl);
 
 interface MapViewProps {
@@ -23,14 +23,14 @@ interface MapViewProps {
   scenarios: ScenarioSummary[];
   selectedScenarioId: string | null;
   onScenarioSelect: (scenarioId: string) => void;
-  /** Appele lorsque de nouvelles bulles d'arrivee apparaissent pendant la lecture. */
+  /** Called when new arrival bubbles appear during playback. */
   onArrivals?: (arrivals: Arrival[]) => void;
   onMapError: (message: string) => void;
 }
 
 /**
- * Carte MapLibre + overlay deck.gl. Le rendu des couches est pilote directement par
- * l'horloge (`clock.onFrame`) : aucun rendu React n'a lieu pendant l'animation.
+ * Render a MapLibre map with a deck.gl overlay driven directly by clock frames,
+ * without requiring a React render for each animation frame.
  */
 export function MapView({
   dataset,
@@ -115,7 +115,7 @@ export function MapView({
     const arrivals = dataset
       ? new ArrivalTracker(dataset.arrivals, (fresh) => callbacksRef.current.onArrivals?.(fresh))
       : null;
-    // Les bulles deja atteintes a l'ouverture du scenario s'affichent sans flash ni son.
+    // Arrivals already reached when opening a scenario appear without flashes or sound.
     arrivals?.sync(clock.time);
     const render = (time: number) => {
       const nowMs = performance.now();

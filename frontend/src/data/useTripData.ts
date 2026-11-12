@@ -4,21 +4,24 @@ import type { SafetyIndexValue } from "../domain/types";
 import { prepareDataset, type RenderDataset } from "./prepareDataset";
 import { collectPedestrianPoints, mergeSafetyValues } from "./safetySampling";
 
+/** Loading state and prepared data for the selected scenario. */
 export type TripDataState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "error"; message: string }
   | { status: "success"; dataset: RenderDataset; safetyError: string | null };
 
+/** Extract a displayable message from a caught value. */
 export function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
 /**
- * Charge les trajets du scenario selectionne puis l'indice pour les positions de marche et
- * d'attente (voir `safetySampling.ts`). Une panne du service indice n'empeche pas l'affichage
- * des trajets : ces positions sont alors signalees comme non disponibles plutot que remplacees
- * par une valeur inventee.
+ * Load the selected scenario and evaluate its walking and waiting vertices.
+ *
+ * A safety service failure does not hide the trips: pedestrian values remain
+ * unavailable and the failure is exposed in the success state. Requests are
+ * canceled when the selection or client changes.
  */
 export function useTripData(
   clients: DataClients,

@@ -37,11 +37,13 @@ _METRES_PER_DEGREE_LON_AT_EQUATOR = 111_320.0
 
 
 class OptimizationError(RuntimeError):
-    pass
+    """A scenario could not be read or the scenario directory is unavailable."""
 
 
 @dataclass(frozen=True)
 class OptimizationResult:
+    """Status and point counts for one scenario optimization."""
+
     scenario_id: str
     status: str
     points_before: int = 0
@@ -49,7 +51,7 @@ class OptimizationResult:
 
 
 def is_up_to_date(source: Path, optimized: Path) -> bool:
-    """The optimized file is valid while it is not older than its pipeline source."""
+    """Return whether both files exist and the optimized file is not older."""
     try:
         return optimized.stat().st_mtime_ns >= source.stat().st_mtime_ns
     except FileNotFoundError:
@@ -57,10 +59,19 @@ def is_up_to_date(source: Path, optimized: Path) -> bool:
 
 
 def simplify_trajectory(xy: np.ndarray, offsets: np.ndarray, tolerance_m: float) -> np.ndarray:
-    """
-    Boolean mask of the vertices to keep (first and last always kept). `xy` is in metres,
-    `offsets` in seconds; the error of a vertex is its distance to the position interpolated at its
-    timestamp between the kept neighbours (synchronized Euclidean distance).
+    """Select vertices using time-aware Douglas-Peucker simplification.
+
+    A vertex's error is its distance from the position interpolated at its
+    timestamp between retained neighbors.
+
+    Args:
+        xy: Vertex coordinates in metres.
+        offsets: Vertex timestamps in seconds.
+        tolerance_m: Maximum interpolation error in metres.
+
+    Returns:
+        Boolean mask of retained vertices, including the first and last when
+        the input is nonempty.
     """
     count = len(xy)
     keep = np.zeros(count, dtype=bool)
@@ -90,7 +101,15 @@ def simplify_trajectory(xy: np.ndarray, offsets: np.ndarray, tolerance_m: float)
 
 
 def simplify_journey(journey: Journey, tolerance_m: float) -> Journey:
-    """Simplifies each leg separately so that leg boundaries and `point_range` stay exact."""
+    """Simplify each leg separately, preserving leg boundaries and point ranges.
+
+    Args:
+        journey: Validated journey to simplify.
+        tolerance_m: Maximum temporal interpolation error in metres.
+
+    Returns:
+        A validated journey with remapped point ranges and retained offsets.
+    """
     coordinates = np.asarray(journey.coordinates, dtype=float)
     offsets = np.asarray(journey.offsets_s, dtype=float)
     lon_scale = _METRES_PER_DEGREE_LON_AT_EQUATOR * math.cos(math.radians(float(coordinates[0, 1])))
@@ -123,13 +142,31 @@ def _check_tolerance(tolerance_m: float) -> None:
 
 
 def optimize_document(document: ScenarioDocument, tolerance_m: float = DEFAULT_TOLERANCE_M) -> ScenarioDocument:
+    """Simplify all journeys and validate the resulting scenario document.
+
+    Raises:
+        ValueError: The tolerance is negative or nonfinite.
+    """
     _check_tolerance(tolerance_m)
     journeys = [simplify_journey(journey, tolerance_m) for journey in document.journeys]
     return ScenarioDocument.model_validate({**document.model_dump(exclude={"journeys"}), "journeys": journeys})
 
 
 def optimize_file(source: Path, target: Path, tolerance_m: float = DEFAULT_TOLERANCE_M) -> tuple[int, int]:
-    """Writes the optimized document atomically; returns the point counts before and after."""
+    """Validate, simplify and atomically write a scenario to the target.
+
+    Args:
+        source: Original scenario JSON file.
+        target: Destination for the optimized JSON file.
+        tolerance_m: Maximum temporal interpolation error in metres.
+
+    Returns:
+        The total point counts before and after simplification.
+
+    Raises:
+        OptimizationError: The source cannot be read or validated.
+        ValueError: The tolerance is negative or nonfinite.
+    """
     try:
         document = ScenarioDocument.model_validate_json(source.read_bytes())
     except (OSError, ValidationError) as exc:
@@ -145,6 +182,20 @@ def optimize_file(source: Path, target: Path, tolerance_m: float = DEFAULT_TOLER
 def optimize_directory(
     directory: Path, tolerance_m: float = DEFAULT_TOLERANCE_M, force: bool = False
 ) -> list[OptimizationResult]:
+    """Optimize scenario files in subdirectories, skipping current outputs by default.
+
+    Args:
+        directory: Root containing scenario directories.
+        tolerance_m: Maximum temporal interpolation error in metres.
+        force: Rebuild outputs even when they are up to date.
+
+    Returns:
+        Results in scenario folder order.
+
+    Raises:
+        OptimizationError: The directory or a scenario cannot be read.
+        ValueError: The tolerance is negative or nonfinite.
+    """
     if not directory.is_dir():
         raise OptimizationError(f"Scenario directory is unavailable: {directory}")
     _check_tolerance(tolerance_m)
@@ -163,6 +214,7 @@ def optimize_directory(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Run the optimization CLI and return a process exit status."""
     parser = argparse.ArgumentParser(description="Write simplified journeys.min.json next to each journeys.json.")
     parser.add_argument("--directory", type=Path, default=DEFAULT_SCENARIOS_DIR)
     parser.add_argument("--tolerance-m", type=float, default=DEFAULT_TOLERANCE_M)

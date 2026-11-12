@@ -14,6 +14,7 @@ import { MapView } from "./map/MapView";
 import { SimulationClock } from "./simulation/SimulationClock";
 import { DEFAULT_REAL_SECONDS_PER_SIM_HOUR } from "./simulation/speedPresets";
 
+/** Coordinate data sources, scenario selection, simulation and map status. */
 export function App() {
   const config = useMemo(() => loadConfig(), []);
   const clients = useMemo(() => createDataClients(config), [config]);
