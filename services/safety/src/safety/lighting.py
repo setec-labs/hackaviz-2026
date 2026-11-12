@@ -19,8 +19,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_LIGHTING_RASTER = Path(__file__).with_name("luminosite_log.tif")
 
 # luminosite_log.tif is already on a logarithmic scale (delivered by the victoria branch),
-# with values spanning exactly [0, 100]: a linear rescaling is enough here.
+# with values spanning exactly [0, 100]: do not apply another logarithm.
 LIGHTING_RAW_MAX = 100.0
+LIGHTING_RAW_THRESHOLD = 50.0
 
 
 def normalize_lighting(raw_value: float) -> float:
@@ -30,7 +31,7 @@ def normalize_lighting(raw_value: float) -> float:
         raw_value: Finite raster value in [0, 100].
 
     Returns:
-        A score in [0, 1], from darkest to brightest.
+        Zero below 50, otherwise the raw value divided by 100.
 
     Raises:
         IndicatorDataError: The raw value is nonfinite or outside [0, 100].
@@ -39,6 +40,8 @@ def normalize_lighting(raw_value: float) -> float:
         raise IndicatorDataError(
             f"Lighting raw value {raw_value} is outside the expected range [0, {LIGHTING_RAW_MAX:g}]"
         )
+    if raw_value < LIGHTING_RAW_THRESHOLD:
+        return 0.0
     return raw_value / LIGHTING_RAW_MAX
 
 
@@ -109,8 +112,9 @@ class LightingIndicatorProvider:
     id = "lighting"
     name = "Lighting"
     description = (
-        "Night-time lighting level read from a raster and linearly normalized: "
-        "0 is the darkest, 1 the brightest."
+        "Night-time lighting indicator: 0 below 50% of the log-scaled raster range, "
+        "otherwise the raster value divided by 100 (1 is the brightest). "
+        "This is not an objective measure of safety."
     )
 
     def __init__(self, raster_path: Path = DEFAULT_LIGHTING_RASTER) -> None:

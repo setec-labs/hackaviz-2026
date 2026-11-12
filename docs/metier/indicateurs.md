@@ -27,15 +27,19 @@ l'éclairage est implémenté : l'indice est donc égal au score d'éclairage.
 | Source | raster de luminosité nocturne préparé par l'équipe |
 | Résolution | maille de 130 m, Lambert 93 (EPSG:2154) |
 | Valeurs | de 0 à 100, déjà en **échelle logarithmique** |
-| Normalisation | `score = valeur / 100` |
+| Normalisation | `score = 0` si `valeur < 50`, sinon `valeur / 100` |
 
-Exemples : Châtelet ≈ 0,80 ; bois de Vincennes ≈ 0,18.
+Exemples : Châtelet ≈ 0,80 ; bois de Vincennes = 0 (valeur brute ≈ 18).
 
 **Pourquoi une échelle logarithmique ?** La première version utilisait la luminosité en échelle linéaire.
 Quelques zones très éclairées (centre de Paris, grands axes) écrasaient l'échelle et presque toute la
 région apparaissait défavorable. La perception de la lumière étant elle-même plutôt logarithmique, le
-raster a été refait en échelle log. Le service applique ensuite une simple division, pour ne pas appliquer
-le logarithme deux fois.
+raster a été refait en échelle log. Le service ne réapplique pas de logarithme.
+
+**Pourquoi un seuil à 50 % ?** Une faible luminosité conserve un score nul pour accentuer le contraste,
+notamment en dehors de Paris. Les valeurs strictement inférieures à 50 donnent 0 ; à partir de 50
+inclus, le score reste la valeur divisée par 100 (50 donne 0,5). Ce seuil est un choix de modélisation
+sur l'échelle du raster, pas une mesure physique ni une preuve qu'un lieu est dangereux.
 
 **Hors couverture** : une position hors du raster ou sans donnée n'a pas de score et s'affiche « non
 disponible ».

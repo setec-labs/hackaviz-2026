@@ -104,7 +104,12 @@ Calcul : position WGS84 → reprojection dans le CRS du raster (pyproj) → pixe
 contenant la position → valeur brute (rasterio) → score linéaire `valeur / 100`.
 Aucun logarithme n'est appliqué par le service, pour ne pas l'appliquer deux fois.
 
-Exemples : Châtelet ≈ 0,80, bois de Vincennes ≈ 0,18.
+Si la valeur brute est strictement inférieure à 50 (50 % de l'échelle du raster),
+le score est ramené à **0** pour accentuer le contraste des zones peu éclairées.
+À partir de 50 inclus, le score reste `valeur / 100` : 50 donne 0,5 et 100 donne 1.
+Ce seuil est un choix de modélisation, pas une mesure physique ni une preuve de danger.
+
+Exemples : Châtelet ≈ 0,80, bois de Vincennes = 0 (valeur brute ≈ 18).
 Une position hors du raster ou sans donnée (nodata) n'a pas de score. Une valeur
 brute hors de [0, 100] est traitée comme une donnée invalide (503).
 

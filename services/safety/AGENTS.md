@@ -119,7 +119,7 @@ Position WGS84 (EPSG:4326)
     -> reprojection dans le CRS du raster (pyproj, always_xy=True)
     -> pixel contenant la position (transformation affine inverse, arrondi vers le bas)
     -> valeur brute (rasterio, bande 1, nodata masque)
-    -> normalize_lighting : valeur / 100
+    -> normalize_lighting : 0 si valeur < 50, sinon valeur / 100
     -> score [0, 1]
 ```
 
@@ -128,11 +128,13 @@ de 0 a 100 deja en echelle logarithmique (unite non documentee), environ 37 % de
 
 Decisions :
 
-- normalisation **lineaire** `valeur / 100` : le log est desormais applique en amont dans le
+- seuil : une valeur brute strictement inferieure a 50 donne 0 ; a partir de 50 inclus,
+  normalisation **lineaire** `valeur / 100`. Ce seuil accentue le contraste des zones peu
+  eclairees, sans constituer une preuve de danger. Le log est deja applique en amont dans le
   raster (`luminosite_log.tif`, branche `victoria`). Ne pas rajouter de log dans le service, il
   serait applique deux fois. Historique : un `log(1 + v) / log(101)` etait applique sur
   `luminosite.tif` car en lineaire 98,5 % de Paris tombait sous 0,25. Avec le raster log :
-  Chatelet ~0,80, bois de Vincennes ~0,18. Pour changer de strategie, modifier uniquement
+  Chatelet ~0,80, bois de Vincennes = 0 (valeur brute ~18). Pour changer de strategie, modifier uniquement
   `normalize_lighting`, puis ses tests et la documentation ;
 - position hors raster, nodata ou `NaN` -> `IndicatorUnavailableError` ;
 - valeur brute hors `[0, 100]` -> `IndicatorDataError`, sans la borner ;

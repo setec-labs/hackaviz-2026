@@ -58,7 +58,8 @@ class IndicatorProvider(Protocol):
 ```
 
 Le seul provider actuel, `LightingIndicatorProvider` (`lighting.py`), reprojette la position en
-Lambert 93 avec pyproj, lit le pixel du raster avec rasterio et divise la valeur par 100.
+Lambert 93 avec pyproj et lit le pixel du raster avec rasterio. Une valeur strictement inférieure
+à 50 donne un score de 0 ; à partir de 50 inclus, la valeur est divisée par 100.
 
 !!! tip "Ajouter un indicateur"
     Créer un provider qui renvoie un score dans [0, 1] (1 = le plus favorable), l'enregistrer dans
