@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  ANXIETY_WINDOW_SECONDS,
+  ANXIETY_WORST_SECONDS,
   buildArrivals,
   buildConstellation,
   countReached,
   populationRadiusPx,
   populationScale,
   simulatePopulation,
-  worstWindowSafety,
+  worstMinutesSafety,
   type ArrivalSource,
 } from "../data/arrivals";
 import { safetyIndexColor } from "../domain/safetyLevels";
@@ -26,27 +26,33 @@ function source(id: string, endTime: number, position: [number, number], populat
   };
 }
 
-describe("worstWindowSafety", () => {
-  it("finds the worst 10 consecutive minutes anywhere along the trip", () => {
-    expect(ANXIETY_WINDOW_SECONDS).toBe(600);
+describe("worstMinutesSafety", () => {
+  it("finds the worst 10 minutes anywhere along the trip", () => {
+    expect(ANXIETY_WORST_SECONDS).toBe(600);
     // 0-30 min favorable, 30-40 min defavorable, 40-60 min favorable : la pire fenetre est au milieu.
     const timestamps = [0, 1800, 1800, 2400, 2400, 3600];
-    expect(worstWindowSafety(timestamps, [0.9, 0.9, 0.1, 0.1, 0.9, 0.9])).toBeCloseTo(0.1);
+    expect(worstMinutesSafety(timestamps, [0.9, 0.9, 0.1, 0.1, 0.9, 0.9])).toBeCloseTo(0.1);
     // Le pire passage au debut du trajet compte autant qu'a la fin.
-    expect(worstWindowSafety([0, 600, 600, 3600], [0.2, 0.2, 0.8, 0.8])).toBeCloseTo(0.2);
+    expect(worstMinutesSafety([0, 600, 600, 3600], [0.2, 0.2, 0.8, 0.8])).toBeCloseTo(0.2);
   });
 
-  it("averages within the window rather than keeping a single low point", () => {
-    // 5 minutes a 0.2 entourees de 0.8 : moyenne sur 10 minutes = 0.5.
+  it("adds up the worst minutes even when they are not consecutive", () => {
+    // Deux passages de 5 minutes a 0.2 separes de 30 minutes a 0.8 : les 10 pires minutes valent 0.2.
+    const timestamps = [0, 300, 300, 2100, 2100, 2400, 2400, 3600];
+    expect(worstMinutesSafety(timestamps, [0.2, 0.2, 0.8, 0.8, 0.2, 0.2, 0.8, 0.8])).toBeCloseTo(0.2);
+  });
+
+  it("averages over 10 minutes rather than keeping a single low point", () => {
+    // 5 minutes a 0.2 entourees de 0.8 : moyenne des 10 pires minutes = 0.5.
     const timestamps = [0, 1200, 1200, 1500, 1500, 2700];
-    expect(worstWindowSafety(timestamps, [0.8, 0.8, 0.2, 0.2, 0.8, 0.8])).toBeCloseTo(0.5);
+    expect(worstMinutesSafety(timestamps, [0.8, 0.8, 0.2, 0.2, 0.8, 0.8])).toBeCloseTo(0.5);
   });
 
   it("uses the whole trip when shorter than the window and ignores missing values", () => {
-    expect(worstWindowSafety([0, 300], [0.4, null])).toBeCloseTo(0.4);
-    expect(worstWindowSafety([0, 300], [null, null])).toBeNull();
-    expect(worstWindowSafety([], [])).toBeNull();
-    expect(worstWindowSafety([10], [0.3])).toBe(0.3);
+    expect(worstMinutesSafety([0, 300], [0.4, null])).toBeCloseTo(0.4);
+    expect(worstMinutesSafety([0, 300], [null, null])).toBeNull();
+    expect(worstMinutesSafety([], [])).toBeNull();
+    expect(worstMinutesSafety([10], [0.3])).toBe(0.3);
   });
 });
 
@@ -73,14 +79,14 @@ describe("buildArrivals", () => {
     const arrivals = buildArrivals([source("late", 900, [2.5, 48.9], 1_000), source("early", 300, [2.2, 48.8])]);
     expect(arrivals.map((arrival) => arrival.id)).toEqual(["early", "late"]);
     expect(arrivals[1]).toMatchObject({ population: 1_000, populationSimulated: false, implausible: false });
-    expect(arrivals[1]?.worstWindowSafety).toBeCloseTo(0.7);
+    expect(arrivals[1]?.worstMinutesSafety).toBeCloseTo(0.7);
     expect(arrivals[0]?.populationSimulated).toBe(true);
-    expect(arrivals[0]?.color).toEqual(safetyIndexColor(arrivals[0]?.worstWindowSafety ?? null));
+    expect(arrivals[0]?.color).toEqual(safetyIndexColor(arrivals[0]?.worstMinutesSafety ?? null));
   });
 
   it("marks trips longer than 2 hours as implausible, with a neutral colour", () => {
     const [arrival] = buildArrivals([source("long", 2 * 3600 + 1, [2.5, 48.9], 1_000)]);
-    expect(arrival).toMatchObject({ implausible: true, worstWindowSafety: null, color: rgba("neutral") });
+    expect(arrival).toMatchObject({ implausible: true, worstMinutesSafety: null, color: rgba("neutral") });
   });
 
   it("links each star to its nearest earlier neighbour", () => {

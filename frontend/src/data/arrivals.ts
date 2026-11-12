@@ -3,8 +3,8 @@ import { implausibleTripColor, isImplausibleTrip } from "../domain/tripPlausibil
 import type { SafetyIndexValue } from "../domain/types";
 import type { Rgba } from "../theme/palette";
 
-/** Duree, en secondes simulees, de la fenetre glissante sur laquelle on cherche l'anxiete maximale. */
-export const ANXIETY_WINDOW_SECONDS = 10 * 60;
+/** Duree cumulee, en secondes simulees, des pires instants du trajet retenus pour l'anxiete. */
+export const ANXIETY_WORST_SECONDS = 10 * 60;
 /** Pas d'echantillonnage temporel de l'indice le long du trajet. */
 const SAMPLE_STEP_SECONDS = 15;
 
@@ -36,10 +36,10 @@ export interface Arrival {
   /** Vrai tant que la population n'est pas fournie par les donnees. */
   populationSimulated: boolean;
   /**
-   * Indice moyen des 10 pires minutes consecutives du trajet (anxiete = 1 - indice) ;
+   * Indice moyen des 10 pires minutes du trajet, consecutives ou non (anxiete = 1 - indice) ;
    * null sans donnee ou si le trajet est peu plausible.
    */
-  worstWindowSafety: SafetyIndexValue;
+  worstMinutesSafety: SafetyIndexValue;
   /** Trajet de plus de 2 h : bulle neutre et creuse. */
   implausible: boolean;
   radiusPx: number;
@@ -60,48 +60,35 @@ function segmentValue(a: SafetyIndexValue, b: SafetyIndexValue): SafetyIndexValu
 }
 
 /**
- * Indice moyen sur la pire fenetre glissante de `windowSeconds` du trajet (fenetre ramenee a la
- * duree du trajet s'il est plus court). L'indice est echantillonne tous les 15 s ; chaque segment
- * prend la moyenne des valeurs disponibles a ses extremites et les instants sans donnee sont ignores.
+ * Indice moyen des `minutesSeconds` les plus defavorables du trajet, consecutives ou non (ramenees a la
+ * duree du trajet s'il est plus court). L'indice est echantillonne tous les 15 s ; chaque segment prend
+ * la moyenne des valeurs disponibles a ses extremites et les instants sans donnee sont ignores.
  */
-export function worstWindowSafety(
+export function worstMinutesSafety(
   timestamps: number[],
   safety: SafetyIndexValue[],
-  windowSeconds = ANXIETY_WINDOW_SECONDS,
+  minutesSeconds = ANXIETY_WORST_SECONDS,
 ): SafetyIndexValue {
   const start = timestamps[0];
   const end = timestamps[timestamps.length - 1];
   if (start === undefined || end === undefined) return null;
   const sampleCount = Math.max(1, Math.ceil((end - start) / SAMPLE_STEP_SECONDS));
-  const samples: SafetyIndexValue[] = [];
+  const samples: number[] = [];
   let segment = 0;
   for (let k = 0; k < sampleCount; k += 1) {
     const time = Math.min(end, start + (k + 0.5) * SAMPLE_STEP_SECONDS);
     while (segment < timestamps.length - 2 && (timestamps[segment + 1] ?? end) < time) segment += 1;
     const last = timestamps.length === 1;
-    samples.push(last ? (safety[0] ?? null) : segmentValue(safety[segment] ?? null, safety[segment + 1] ?? null));
+    const value = last ? (safety[0] ?? null) : segmentValue(safety[segment] ?? null, safety[segment + 1] ?? null);
+    if (value !== null) samples.push(value);
   }
+  if (samples.length === 0) return null;
 
-  const windowSize = Math.min(sampleCount, Math.max(1, Math.round(windowSeconds / SAMPLE_STEP_SECONDS)));
+  const worstCount = Math.min(samples.length, Math.max(1, Math.round(minutesSeconds / SAMPLE_STEP_SECONDS)));
+  samples.sort((a, b) => a - b);
   let sum = 0;
-  let count = 0;
-  let worst: number | null = null;
-  samples.forEach((value, index) => {
-    if (value !== null) {
-      sum += value;
-      count += 1;
-    }
-    const leaving = index >= windowSize ? samples[index - windowSize] : null;
-    if (leaving !== null && leaving !== undefined) {
-      sum -= leaving;
-      count -= 1;
-    }
-    if (index >= windowSize - 1 && count > 0) {
-      const mean = sum / count;
-      worst = worst === null ? mean : Math.min(worst, mean);
-    }
-  });
-  return worst;
+  for (let k = 0; k < worstCount; k += 1) sum += samples[k] ?? 0;
+  return sum / worstCount;
 }
 
 function hashString(text: string): number {
@@ -143,7 +130,7 @@ export function buildArrivals(trips: ArrivalSource[]): Arrival[] {
     const populationSimulated = trip.destinationPopulation === null;
     const population = trip.destinationPopulation ?? simulatePopulation(trip.id);
     const implausible = isImplausibleTrip(trip.endTime - (trip.timestamps[0] ?? trip.endTime));
-    const worst = implausible ? null : worstWindowSafety(trip.timestamps, trip.safety);
+    const worst = implausible ? null : worstMinutesSafety(trip.timestamps, trip.safety);
     return [{
       id: trip.id,
       destinationName: trip.destinationName,
@@ -151,7 +138,7 @@ export function buildArrivals(trips: ArrivalSource[]): Arrival[] {
       time: trip.endTime,
       population,
       populationSimulated,
-      worstWindowSafety: worst,
+      worstMinutesSafety: worst,
       implausible,
       radiusPx: populationRadiusPx(population),
       color: implausible ? implausibleTripColor() : safetyIndexColor(worst),

@@ -1,6 +1,6 @@
 import type { PickingInfo } from "@deck.gl/core";
 import { formatDuration, formatIndex, formatMode, formatSimulatedTime } from "../components/format";
-import { ANXIETY_WINDOW_SECONDS, type Arrival } from "../data/arrivals";
+import { ANXIETY_WORST_SECONDS, type Arrival } from "../data/arrivals";
 import type { RenderDataset, RenderTrip } from "../data/prepareDataset";
 import { classifySafetyIndex } from "../domain/safetyLevels";
 import { IMPLAUSIBLE_TRIP_LABEL } from "../domain/tripPlausibility";
@@ -67,9 +67,9 @@ function arrivalLines(dataset: RenderDataset, arrival: Arrival): string[] {
   if (arrival.implausible) {
     return [...header, mutedLine(`${IMPLAUSIBLE_TRIP_LABEL}. Indicateur non évalué.`)];
   }
-  const worst = arrival.worstWindowSafety;
+  const worst = arrival.worstMinutesSafety;
   const anxiety = worst === null ? null : 1 - worst;
-  const windowMinutes = ANXIETY_WINDOW_SECONDS / 60;
+  const windowMinutes = ANXIETY_WORST_SECONDS / 60;
   return [
     ...header,
     `Anxiété des ${windowMinutes} pires minutes du trajet : ${formatIndex(anxiety)}`,

@@ -62,8 +62,8 @@ export function Legend({ safetySimulated }: { safetySimulated: boolean }) {
           </span>
           <span>
             <span className="text-ink">Bulles d'arrivée</span> : taille proportionnelle à la population de la
-            zone ; couleur selon l'anxiété des 10 pires minutes du trajet (indicateur moyen le plus bas sur
-            10 minutes consécutives).
+            zone ; couleur selon l'anxiété des 10 pires minutes du trajet             (indicateur moyen sur les
+                        10 minutes les plus défavorables, consécutives ou non).
           </span>
         </div>
         <div className="mt-2 flex items-start gap-2 text-[11px] leading-snug text-ink-muted">

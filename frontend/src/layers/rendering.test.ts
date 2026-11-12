@@ -89,9 +89,9 @@ describe("prepareDataset", () => {
       ["b", 300, [2.1, 48.1]],
     ]);
     expect(dataset.arrivals[0]).toMatchObject({ population: 12_000, populationSimulated: false, implausible: false });
-    expect(dataset.arrivals[0]?.worstWindowSafety).toBeCloseTo(0.475);
+    expect(dataset.arrivals[0]?.worstMinutesSafety).toBeCloseTo(0.475);
     expect(dataset.arrivals[1]?.populationSimulated).toBe(true);
-    expect(dataset.arrivals[1]?.worstWindowSafety).toBeCloseTo(0.25);
+    expect(dataset.arrivals[1]?.worstMinutesSafety).toBeCloseTo(0.25);
     expect(dataset.constellation).toEqual([{ from: [2.4, 48.9], to: [2.1, 48.1], time: 300 }]);
   });
 
@@ -100,7 +100,7 @@ describe("prepareDataset", () => {
     const dataset = prepareDataset([long], [0.9, 0.9, 0.9]);
     expect(dataset.trips[0]?.implausible).toBe(true);
     expect(dataset.trips[0]?.colors.every((color) => color.slice(0, 3).join() === rgba("neutral").slice(0, 3).join())).toBe(true);
-    expect(dataset.arrivals[0]).toMatchObject({ implausible: true, worstWindowSafety: null, color: rgba("neutral") });
+    expect(dataset.arrivals[0]).toMatchObject({ implausible: true, worstMinutesSafety: null, color: rgba("neutral") });
   });
 });
 

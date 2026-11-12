@@ -102,8 +102,8 @@ Les valeurs par défaut peuvent aussi être définies avec `VITE_DATA_SOURCE`, `
   cliquez sur « Activer l'ambiance sonore » pour autoriser la lecture.
 - **Bulles d'arrivée (constellation)** : à la fin d'un trajet, une bulle lumineuse apparaît à la
   destination avec un anneau qui s'étend, puis reste affichée avec un halo scintillant. Sa **taille** suit
-  la population de la zone et sa **couleur** l'anxiété des 10 pires minutes du trajet : indicateur moyen
-  le plus bas sur une fenêtre glissante de 10 minutes consécutives, n'importe où sur le trajet
+  la population de la zone et sa **couleur** l'anxiété des 10 pires minutes du trajet : moyenne de
+  l'indicateur sur les 10 minutes les plus défavorables, consécutives ou non, n'importe où sur le trajet
   (anxiété = 1 − indicateur). Chaque bulle est reliée à l'arrivée
   antérieure la plus proche, ce qui dessine une constellation. Le survol affiche la destination, l'heure,
   la population et l'indicateur.
