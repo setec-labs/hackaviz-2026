@@ -1,0 +1,65 @@
+agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_phone,agency_email,agency_fare_url,ticketing_deep_link_id
+IDFM:1060,Paris Saclay,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1052,Mantois,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1059,Essonne Sud Ouest,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1070,Pays Briard,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1055,Meaux et Ourcq,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:64,Marne-la-Vallée,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:885,Paris-Saclay Mobilités,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1061,Vélizy Vallées,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1054,Argenteuil - Boucles de Seine,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1049,Vallée de Montmorency,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1051,Poissy - Les Mureaux,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1056,Brie et 2 Morin,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1050,Grand Melun,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1057,Val d'Yerres Val de Seine,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1058,Essonne Sud Est,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:78,Sénart,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1065,Marne et Seine,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1068,Saint-Quentin-en-Yvelines,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1071,Roissy Ouest,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1069,Terres d'Envol,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1062,Saint Germain Boucles de Seine,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1048,Vexin,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1064,Vallée Sud Grand Paris,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1063,Bièvre,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:593,Titus,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1075,Vallée du Loing - Nemours,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1072,Roissy Est,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1073,Pays de Montereau,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1078,Provinois - Brie et Seine,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1077,Grand Versailles,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1076,Cœur d’Essonne,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1074,Fontainebleau - Moret,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1080,Evry Centre Essonne,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1079,Lignes Île-de-France Ouest,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1081,Centre et Sud Yvelines,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1083,Haut Val d'Oise,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1082,Cergy-Pontoise Confluence,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1085,Aérobus,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1086,Val Parisis,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1087,Marne et Brie,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1088,Grand Paris Seine Ouest,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1089,Express Roissy,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1090,Boucles Nord de Seine,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1091,Bord de Marne,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1092,Massy-Juvisy,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1093,Croix du Sud,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1096,La Défense - Saint Cloud,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1095,Plaine Saint-Denis,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1094,Ourcq,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1098,Seine Orly,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1097,Pompadour,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1099,Rive Droite,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1100,Rive Gauche,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:Operator_1042,STRETTO,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:Operator_1044,Origami / Paris Seine Mobilités,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:Operator_100,RATP,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:Operator_1054,Grisel,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:Operator_1057,Bluestation,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:Operator_231,Magical Shuttle,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:Operator_043,ADP,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:Operator_1047,RATP Cap Arc Sud et Ouest,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:1046,Transilien,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:93,TER,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1
+IDFM:71,RER,https://www.iledefrance-mobilites.fr,Europe/Paris,,,,https://app.idf-mobilites.fr/gtfs,ticketing_deep_link:1

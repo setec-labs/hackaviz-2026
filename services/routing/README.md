@@ -173,6 +173,105 @@ Le frontend attend encore le contrat provisoire `GET /trips`. Cette route
 n'est pas fournie par cette API de scénarios : l'adaptation du client frontend
 reste à réaliser. Le mode mocks reste inchangé.
 
+## Calculer l'accessibilité en transports en commun
+
+Le script `routing.transit_accessibility` reprend le calcul du notebook de
+preuve de concept et exporte les itinéraires dans un document JSON.
+
+
+```powershell
+uv run --package routing transit-accessibility --data-dir ..\..\..\HAckaton\sources
+```
+
+Le résultat et les caches resteront dans `data/output/transit_accessibility/`.
+
+Installez les dépendances du workspace, puis lancez le test avec les trois
+destinations d'exemple :
+
+```powershell
+uv sync
+uv run --package routing transit-accessibility
+```
+
+Pour calculer une destination à la mairie de chaque commune d'Île-de-France :
+
+```powershell
+uv run --package routing transit-accessibility --all-communes
+```
+
+Les coordonnées des mairies et les populations sont téléchargées depuis
+`geo.api.gouv.fr`, puis mises en cache dans
+`communes_idf_mairies_population_v2.json` dans le dossier de cache. Chaque
+commune francilienne est une destination ; Paris est remplacée par ses 20
+arrondissements municipaux, chacun avec son propre point de mairie et sa
+population. Le champ `destination.population` du JSON exporté est un entier
+(les trois destinations de démonstration ont `null`). Pour un essai limité,
+combinez par exemple
+`--all-communes --max-destinations 10`. La date, l'heure, l'origine,
+les dossiers de données et de sortie peuvent être ajustés avec `--service-date`,
+`--departure-time`, `--origin-lat`, `--origin-lon`, `--data-dir` et
+`--output-dir`.
+
+Par défaut, le JSON final et les caches piétons sont écrits sous
+`data/output/transit_accessibility/`. Le script peut aussi être appelé depuis
+n'importe quel répertoire : ses chemins par défaut sont calculés relativement
+à la racine Git, et non au répertoire courant.
+
+### Lancer plusieurs scénarios
+
+Créez un fichier JSON (par exemple `data/scenarios.json`) contenant un objet
+par origine et heure de départ :
+
+```json
+[
+  {
+    "scenario_id": "scenario-01",
+    "description": "Départ de la rue de Lappe à 2 h du matin.",
+    "origin_lat": 48.853563,
+    "origin_lon": 2.372961,
+    "departure_time": "02:00:00"
+  },
+  {
+    "scenario_id": "scenario-02",
+    "description": "Départ de la gare de Lyon à 6 h 30.",
+    "origin_lat": 48.856600,
+    "origin_lon": 2.352200,
+    "departure_time": "06:30:00"
+  }
+]
+```
+
+Le champ `description` est obligatoire et doit être une chaîne. L’identifiant
+`scenario_id` est écrit dans le JSON de sortie comme `name`, et `description`
+est également recopiée à la racine du document.
+
+Ajoutez les huit autres objets pour vos dix scénarios, puis lancez depuis la
+racine du dépôt :
+
+```powershell
+uv run --package routing transit-accessibility-scenarios `
+  --scenarios data\scenarios.json `
+  --data-dir ..\..\..\HAckaton\sources `
+  --all-communes
+```
+
+Le lanceur exécute les scénarios **séquentiellement** pour éviter de multiplier
+la consommation mémoire. Chaque résultat est écrit séparément sous
+`data/output/scenarios/<scenario_id>/journeys.json`. Le cache du graphe OSM
+et celui des mairies sont partagés dans
+`data/output/transit_accessibility_cache/` : le graphe est construit au premier
+lancement, puis réutilisé automatiquement. En cas d'interruption, ajoutez
+`--resume` pour ignorer les scénarios dont le JSON de sortie est déjà valide.
+Vous pouvez valider le pipeline sur une liste réduite avec
+`--max-destinations 10`.
+
+Le cache évite de reconstruire le graphe, mais le calcul CSA et les sorties
+piétonnes restent à effectuer pour chaque origine/heure. À environ 30 minutes
+par scénario, dix scénarios prendront encore près de cinq heures de calcul.
+Pour réduire davantage le temps total, il faudrait optimiser ou profiler ces
+étapes coûteuses ; lancer plusieurs calculs simultanément n'est pas activé par
+défaut car chaque processus charge un graphe volumineux en mémoire.
+
 ## Interfaces communes
 
 Si ce service échange des objets avec le frontend ou d'autres services, utilisez autant que possible les modèles Pydantic communs situés dans :
