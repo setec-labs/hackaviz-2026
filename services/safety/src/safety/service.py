@@ -15,14 +15,16 @@ from safety.providers import IndicatorProvider, IndicatorUnavailableError
 
 
 class UnknownIndicatorError(ValueError):
-    pass
+    """A score request references an indicator that is not registered."""
 
 
 class IndicatorNotImplementedError(RuntimeError):
-    pass
+    """A registered indicator cannot yet be evaluated."""
 
 
 class IndicatorService:
+    """Evaluate registered providers and aggregate their normalized scores."""
+
     def __init__(self, providers: tuple[IndicatorProvider, ...]) -> None:
         if not providers:
             raise ValueError("At least one indicator provider is required")
@@ -31,6 +33,7 @@ class IndicatorService:
             raise ValueError("Indicator provider IDs must be unique")
 
     def list_indicators(self) -> list[Indicator]:
+        """Return metadata for registered indicators in provider order."""
         return [
             Indicator(id=provider.id, name=provider.name, description=provider.description)
             for provider in self._providers.values()
@@ -51,10 +54,27 @@ class IndicatorService:
         return results
 
     async def evaluate(self, position: Position) -> EvaluateResponse:
+        """Evaluate all registered indicators at one position."""
         indicators = await self._evaluate(position, list(self._providers.values()))
         return EvaluateResponse(position=position, indicators=indicators)
 
     async def score(self, request: ScoreRequest) -> ScoreResponse:
+        """Evaluate requested indicators and calculate their weighted mean.
+
+        Zero-weight indicators are still evaluated. Weights are scaled by the
+        maximum before summation to avoid overflow.
+
+        Args:
+            request: Position and validated indicator weights.
+
+        Returns:
+            The normalized score and indicator results in request order.
+
+        Raises:
+            UnknownIndicatorError: A requested indicator ID is not registered.
+            IndicatorNotImplementedError: A requested provider is unfinished.
+            IndicatorUnavailableError: A provider has no data at the position.
+        """
         weights = request.weights
         unknown = [
             weight.indicator_id
@@ -75,7 +95,15 @@ class IndicatorService:
         return ScoreResponse(position=request.position, score=score, indicators=indicators)
 
     async def safety_index(self, positions: list[Position]) -> SafetyIndexResponse:
-        """Equal-weight mean of every indicator; null where any indicator has no data."""
+        """Evaluate an equal-weight index for each position.
+
+        Args:
+            positions: WGS84 positions to evaluate, in output order.
+
+        Returns:
+            An index per position; its value is ``None`` if any provider has no
+            data there. Other provider failures are propagated.
+        """
         providers = list(self._providers.values())
         indices = []
         for position in positions:

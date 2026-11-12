@@ -3,19 +3,20 @@ import { implausibleTripColor, isImplausibleTrip } from "../domain/tripPlausibil
 import type { SafetyIndexValue } from "../domain/types";
 import type { Rgba } from "../theme/palette";
 
-/** Duree cumulee, en secondes simulees, des pires instants du trajet retenus pour l'anxiete. */
+/** Total simulated duration of the worst samples retained for anxiety. */
 export const ANXIETY_WORST_SECONDS = 10 * 60;
-/** Pas d'echantillonnage temporel de l'indice le long du trajet. */
+/** Temporal sampling interval for the index along a trip. */
 const SAMPLE_STEP_SECONDS = 15;
 
 const SIMULATED_POPULATION_MIN = 500;
 const SIMULATED_POPULATION_MAX = 50_000;
-/** Nombre d'arrivees precedentes examinees pour relier une etoile a sa plus proche voisine. */
+/** Maximum number of previous arrivals considered when linking a star. */
 const CONSTELLATION_LOOKBACK = 300;
-// Bornes reduites pour rester lisible avec ~1 300 arrivees par scenario.
+// Keep bubbles legible when a scenario has approximately 1,300 arrivals.
 const MIN_BUBBLE_RADIUS_PX = 2.5;
 const MAX_BUBBLE_RADIUS_PX = 16;
 
+/** Render trip data needed to build an arrival. Times are relative seconds. */
 export interface ArrivalSource {
   id: string;
   destinationName: string | null;
@@ -26,30 +27,32 @@ export interface ArrivalSource {
   endTime: number;
 }
 
+/** Arrival bubble data, including population provenance and visual attributes. */
 export interface Arrival {
   id: string;
   destinationName: string | null;
   position: [number, number];
-  /** Instant d'arrivee, en secondes relatives au debut du jeu de donnees. */
+  /** Arrival time in seconds relative to the dataset origin. */
   time: number;
   population: number;
-  /** Vrai tant que la population n'est pas fournie par les donnees. */
+  /** Whether population was simulated because the source did not provide it. */
   populationSimulated: boolean;
   /**
-   * Indice moyen des 10 pires minutes du trajet, consecutives ou non (anxiete = 1 - indice) ;
-   * null sans donnee ou si le trajet est peu plausible.
+   * Mean index over the ten worst minutes, consecutive or not (anxiety is
+   * 1 minus this value); null if unavailable or the trip is implausible.
    */
   worstMinutesSafety: SafetyIndexValue;
-  /** Trajet de plus de 2 h : bulle neutre et creuse. */
+  /** Whether the trip exceeds two hours and uses a neutral, hollow bubble. */
   implausible: boolean;
   radiusPx: number;
   color: Rgba;
 }
 
+/** Link between two arrivals, visible from the later arrival time. */
 export interface ConstellationLink {
   from: [number, number];
   to: [number, number];
-  /** Apparition du lien : arrivee de l'etoile la plus recente. */
+  /** Appearance time of the more recent arrival. */
   time: number;
 }
 
@@ -60,9 +63,14 @@ function segmentValue(a: SafetyIndexValue, b: SafetyIndexValue): SafetyIndexValu
 }
 
 /**
- * Indice moyen des `minutesSeconds` les plus defavorables du trajet, consecutives ou non (ramenees a la
- * duree du trajet s'il est plus court). L'indice est echantillonne tous les 15 s ; chaque segment prend
- * la moyenne des valeurs disponibles a ses extremites et les instants sans donnee sont ignores.
+ * Average the lowest available samples across the requested duration, whether
+ * consecutive or not. Samples are taken every 15 seconds using the mean of
+ * available segment endpoints; samples without data are ignored.
+ *
+ * @param timestamps - Vertex times in seconds.
+ * @param safety - Index values aligned with the vertex times.
+ * @param minutesSeconds - Duration of worst samples to retain, in seconds.
+ * @returns The mean of available worst samples, or null when none are available.
  */
 export function worstMinutesSafety(
   timestamps: number[],
@@ -96,33 +104,32 @@ function hashString(text: string): number {
   for (let i = 0; i < text.length; i += 1) {
     hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
   }
-  // Finaliseur murmur3 : disperse les identifiants voisins (`trip-1`, `trip-2`...).
+  // Murmur3 finalizer disperses neighboring identifiers such as trip-1 and trip-2.
   hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b);
   hash = Math.imul(hash ^ (hash >>> 13), 0xc2b2ae35);
   return (hash ^ (hash >>> 16)) >>> 0;
 }
 
-// Repli pour les donnees sans `destination.population` (mocks) ; le pipeline routing la fournit.
-/** Population simulee, deterministe pour un identifiant, repartie logarithmiquement. */
+/** Simulate a deterministic, log-distributed population when source data is absent. */
 export function simulatePopulation(seedText: string): number {
   const unit = hashString(seedText) / 0xffffffff;
   const value = SIMULATED_POPULATION_MIN * (SIMULATED_POPULATION_MAX / SIMULATED_POPULATION_MIN) ** unit;
   return Math.round(value / 10) * 10;
 }
 
-/** Rayon proportionnel a la racine de la population : l'aire de la bulle suit la population. */
+/** Scale bubble radius with the square root of population, within display bounds. */
 export function populationRadiusPx(population: number): number {
   return Math.min(MAX_BUBBLE_RADIUS_PX, Math.max(MIN_BUBBLE_RADIUS_PX, 2 + Math.sqrt(population) * 0.04));
 }
 
-/** Position relative de la population entre les bornes simulees (0 = petite zone, 1 = grande). */
+/** Return a clamped logarithmic population scale between the simulated bounds. */
 export function populationScale(population: number): number {
   const ratio = Math.log(Math.max(population, 1) / SIMULATED_POPULATION_MIN) /
     Math.log(SIMULATED_POPULATION_MAX / SIMULATED_POPULATION_MIN);
   return Math.min(1, Math.max(0, ratio));
 }
 
-/** Arrivees triees par instant d'arrivee. */
+/** Build arrivals sorted by time, marking populations simulated when absent. */
 export function buildArrivals(trips: ArrivalSource[]): Arrival[] {
   const arrivals = trips.flatMap((trip): Arrival[] => {
     const position = trip.path[trip.path.length - 1];
@@ -147,7 +154,7 @@ export function buildArrivals(trips: ArrivalSource[]): Arrival[] {
   return arrivals.sort((a, b) => a.time - b.time);
 }
 
-/** Relie chaque etoile a la plus proche des etoiles deja apparues, pour former une constellation. */
+/** Connect each arrival to its nearest distinct-position neighbor among the previous 300 arrivals. */
 export function buildConstellation(arrivals: Arrival[]): ConstellationLink[] {
   const links: ConstellationLink[] = [];
   arrivals.forEach((arrival, index) => {
@@ -171,7 +178,7 @@ export function buildConstellation(arrivals: Arrival[]): ConstellationLink[] {
   return links;
 }
 
-/** Nombre d'elements d'un tableau trie par `time` dont l'instant est atteint a `time`. */
+/** Count entries in time order whose time is at or before the supplied time. */
 export function countReached(items: readonly { time: number }[], time: number): number {
   let low = 0;
   let high = items.length;

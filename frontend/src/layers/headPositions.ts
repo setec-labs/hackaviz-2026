@@ -1,17 +1,17 @@
 import type { RenderDataset } from "../data/prepareDataset";
 
 /**
- * Positions courantes ("tetes") des trajets actifs, calculees a chaque image dans des
- * tableaux types preallouees puis transmises a deck.gl sous forme d'attributs binaires.
- * Aucune allocation d'objet par trajet et par image.
+ * Preallocated binary buffers for the current positions of active trips.
+ * Positions are interpolated each frame and passed to deck.gl without
+ * allocating an object for every trip on every frame.
  */
 export class HeadBuffers {
   readonly positions: Float32Array;
   readonly colors: Uint8Array;
   readonly radii: Float32Array;
-  /** Index du trajet source dans `dataset.trips`, pour l'infobulle. */
+  /** Source trip index in `dataset.trips`, used by the tooltip. */
   readonly tripIndices: Int32Array;
-  /** Indice au point courant (NaN si non disponible). */
+  /** Index at the current point, or NaN if unavailable. */
   readonly safety: Float32Array;
   count = 0;
 
@@ -23,6 +23,7 @@ export class HeadBuffers {
     this.safety = new Float32Array(capacity);
   }
 
+  /** Update the buffers for a simulation time and return the active trip count. */
   update(dataset: RenderDataset, time: number): number {
     let count = 0;
     dataset.trips.forEach((trip, tripIndex) => {
@@ -58,7 +59,7 @@ export class HeadBuffers {
   }
 }
 
-/** Plus grand index i tel que timestamps[i] <= time (recherche dichotomique). */
+/** Find the segment containing time by binary search, clamped to the final segment. */
 export function findSegment(timestamps: readonly number[], time: number): number {
   let low = 0;
   let high = timestamps.length - 1;

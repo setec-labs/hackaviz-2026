@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import ambientLoopUrl from "../assets/ambient-loop.wav?url";
 import type { ArrivalChime } from "../audio/arrivalChime";
 
+/** Control ambient audio and optional arrival chimes, including autoplay failures. */
 export function SoundOptions({ chime }: { chime?: ArrivalChime }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);

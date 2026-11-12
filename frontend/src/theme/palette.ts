@@ -1,7 +1,6 @@
 /**
- * Palette du projet (voir frontend/AGENTS.md).
- * Source unique pour le code TypeScript (deck.gl, MapLibre). Les memes valeurs sont
- * exposees a Tailwind dans `src/index.css` (bloc `@theme`) : garder les deux synchronises.
+ * Shared TypeScript palette for deck.gl and MapLibre.
+ * Keep the matching Tailwind `@theme` values in `src/index.css` synchronized.
  */
 export const palette = {
   background: "#061B3A",
@@ -23,6 +22,10 @@ export type PaletteColor = keyof typeof palette;
 export type Rgb = [number, number, number];
 export type Rgba = [number, number, number, number];
 
+/** Convert a six-digit hexadecimal color to RGB channels.
+ *
+ * @throws Error if the color is not a six-digit hexadecimal value.
+ */
 export function hexToRgb(hex: string): Rgb {
   const match = /^#([0-9a-f]{6})$/i.exec(hex);
   if (!match?.[1]) {
@@ -32,11 +35,13 @@ export function hexToRgb(hex: string): Rgb {
   return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
 }
 
+/** Convert a palette color to RGBA with the supplied alpha channel. */
 export function rgba(color: PaletteColor, alpha = 255): Rgba {
   const [r, g, b] = hexToRgb(palette[color]);
   return [r, g, b, alpha];
 }
 
+/** Format RGB channels as a hexadecimal color, ignoring alpha when present. */
 export function rgbToHex([r, g, b]: Rgb | Rgba): string {
   return `#${[r, g, b].map((channel) => Math.round(channel).toString(16).padStart(2, "0")).join("")}`;
 }

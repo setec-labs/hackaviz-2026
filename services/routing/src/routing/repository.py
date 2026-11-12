@@ -28,11 +28,11 @@ _SCENARIO_CACHE_SIZE = 2
 
 
 class ScenarioNotFoundError(LookupError):
-    pass
+    """The requested scenario file does not exist."""
 
 
 class ScenarioDataError(RuntimeError):
-    pass
+    """The scenario directory or its contents cannot be used."""
 
 
 @dataclass(frozen=True)
@@ -48,7 +48,15 @@ class _CachedSummary:
 
 
 def describe_scenario(scenario_id: str, document: ScenarioDocument) -> tuple[str, str]:
-    """Fallback metadata derived only from the data, used until the pipeline exports name and description."""
+    """Fill missing scenario metadata using only the document's known data.
+
+    Args:
+        scenario_id: Folder identifier used when the name is absent.
+        document: Validated scenario document.
+
+    Returns:
+        The supplied or generated name and description.
+    """
     name = document.name or scenario_id.replace("-", " ").replace("_", " ")
     if document.description is not None:
         return name, document.description
@@ -62,9 +70,10 @@ def describe_scenario(scenario_id: str, document: ScenarioDocument) -> tuple[str
 
 
 class ScenarioRepository:
-    """
-    Reads scenarios stored as `<directory>/<scenario_id>/journeys.json`, preferring the simplified
-    `journeys.min.json` written by `optimize-scenarios` when it is not older than the pipeline file.
+    """Read scenario files and cache summaries and recently loaded journeys.
+
+    Prefer ``journeys.min.json`` when it is not older than the pipeline file.
+    Cached entries are invalidated when the selected file's size or mtime changes.
     """
 
     def __init__(self, directory: Path) -> None:
@@ -155,9 +164,26 @@ class ScenarioRepository:
         return scenario_ids
 
     def list_scenarios(self) -> list[ScenarioSummary]:
+        """List summaries sorted by scenario folder ID.
+
+        Raises:
+            ScenarioDataError: The directory, folder IDs or scenario data are invalid.
+        """
         return [self._read_summary(scenario_id) for scenario_id in self._scenario_ids()]
 
     def get_scenario(self, scenario_id: str) -> Scenario:
+        """Load and validate one scenario, reusing a matching cached entry.
+
+        Args:
+            scenario_id: Scenario folder identifier.
+
+        Returns:
+            The scenario with all journeys.
+
+        Raises:
+            ScenarioNotFoundError: The scenario file is absent.
+            ScenarioDataError: The directory or scenario data cannot be read.
+        """
         self._check_directory()
         return self._read(scenario_id)
 
@@ -179,10 +205,10 @@ def _summarize(scenario: Scenario) -> ScenarioSummary:
 
 
 def _summary_from_header(scenario_id: str, data: bytes) -> ScenarioSummary | None:
-    """
-    Validated summary built from the root fields and a count of journeys, or None when the
-    header cannot provide it (fields after `journeys`, missing name or description).
-    Journeys themselves are fully validated when the scenario is requested.
+    """Build a summary from root fields and the number of journey IDs.
+
+    Return ``None`` when the partial header cannot provide the required
+    metadata. Full journey validation happens when the scenario is requested.
     """
     try:
         root = from_json(data[:_HEADER_PREFIX_BYTES], allow_partial=True)

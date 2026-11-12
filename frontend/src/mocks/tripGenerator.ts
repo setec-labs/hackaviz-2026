@@ -3,11 +3,11 @@ import type { GeoPoint } from "../domain/types";
 import { createRandom, pickWeighted, randomBetween, type Random } from "./random";
 
 /*
- * Generation de trajets SIMULES. Les parcours sont synthetiques (courbes bruitees entre
- * une origine et une destination) et ne suivent pas le reseau reel.
+ * Generate synthetic trips as noisy curves between origins and destinations.
+ * These paths do not follow the real transport network.
  */
 
-/** Emprise approximative de l'Ile-de-France. */
+/** Approximate bounds of Île-de-France. */
 export const ILE_DE_FRANCE_BOUNDS = {
   minLongitude: 1.45,
   maxLongitude: 3.56,
@@ -15,7 +15,7 @@ export const ILE_DE_FRANCE_BOUNDS = {
   maxLatitude: 49.24,
 } as const;
 
-/** Poles de destination utilises pour donner une structure plausible aux trajets. */
+/** Destination hubs used to give synthetic trips a plausible spatial structure. */
 const DESTINATION_HUBS: readonly GeoPoint[] = [
   { latitude: 48.8924, longitude: 2.2369 }, // La Defense
   { latitude: 48.9362, longitude: 2.3574 }, // Saint-Denis
@@ -43,7 +43,7 @@ interface ModeProfile {
   mode: string;
   speedKmh: number;
   maxDistanceKm: number;
-  /** Probabilite d'un arret a chaque segment (feux, arrets de bus...). */
+  /** Probability of a stop at each segment, such as a light or bus stop. */
   stopProbability: number;
   stopSeconds: [number, number];
 }
@@ -55,17 +55,18 @@ const MODES: readonly ModeProfile[] = [
   { mode: "car", speedKmh: 32, maxDistanceKm: 60, stopProbability: 0.05, stopSeconds: [15, 50] },
 ];
 
+/** Parameters for reproducible synthetic trips from one origin. */
 export interface MockTripOptions {
   origin: GeoPoint;
   tripCount: number;
   seed: number;
-  /** Debut de la fenetre de depart (ms epoch). */
+  /** Start of the departure window in epoch milliseconds. */
   windowStartMs?: number;
-  /** Duree de la fenetre pendant laquelle les trajets demarrent (minutes). */
+  /** Duration of the departure window in minutes. */
   departureWindowMinutes?: number;
 }
 
-/** Nuit du mardi 10 au mercredi 11 novembre 2026, 22h00 heure de Paris. */
+/** November 10, 2026 at 22:00 Paris time, the default mock departure window. */
 export const DEFAULT_NIGHT_START_MS = Date.parse("2026-11-10T22:00:00+01:00");
 
 const KM_PER_DEGREE_LATITUDE = 110.574;
@@ -74,6 +75,7 @@ function kmPerDegreeLongitude(latitude: number): number {
   return 111.32 * Math.cos((latitude * Math.PI) / 180);
 }
 
+/** Approximate the distance between two nearby WGS84 positions in kilometres. */
 export function distanceKm(a: GeoPoint, b: GeoPoint): number {
   const dx = (b.longitude - a.longitude) * kmPerDegreeLongitude((a.latitude + b.latitude) / 2);
   const dy = (b.latitude - a.latitude) * KM_PER_DEGREE_LATITUDE;
@@ -95,7 +97,7 @@ function clampToRegion(point: GeoPoint): GeoPoint {
   };
 }
 
-/** Approximation gaussienne (somme de trois uniformes centrees). */
+/** Approximate a Gaussian distribution using three centered uniform draws. */
 function gaussian(random: Random): number {
   return (random() + random() + random() - 1.5) / 0.5;
 }
@@ -120,7 +122,7 @@ function pickMode(random: Random, km: number): ModeProfile {
   );
 }
 
-/** Courbe de Bezier cubique bruitee entre deux points, pour imiter un itineraire non rectiligne. */
+/** Create a noisy cubic Bézier curve to imitate a non-straight path. */
 function buildPath(random: Random, start: GeoPoint, end: GeoPoint, km: number): GeoPoint[] {
   const dx = end.longitude - start.longitude;
   const dy = end.latitude - start.latitude;
@@ -151,7 +153,7 @@ function buildPath(random: Random, start: GeoPoint, end: GeoPoint, km: number): 
 }
 
 function buildJourney(random: Random, index: number, options: Required<MockTripOptions>): JourneyDto {
-  // Tous les trajets d'un scenario partent de son origine, comme dans le pipeline routing.
+  // All trips in a scenario start at its origin, as in routing outputs.
   const start = clampToRegion(options.origin);
   let end = pickDestination(random, start);
   let km = distanceKm(start, end);
@@ -212,13 +214,14 @@ function buildJourney(random: Random, index: number, options: Required<MockTripO
   };
 }
 
+/** Scenario metadata and synthetic trip generation options. */
 export interface MockScenarioOptions extends MockTripOptions {
   id: string;
   name: string;
   description: string;
 }
 
-/** Produit un scenario au format de `GET /scenarios/{id}`, comme s'il venait du service routing. */
+/** Generate a synthetic scenario in the routing `GET /scenarios/{id}` format. */
 export function generateMockScenario(options: MockScenarioOptions): ScenarioDto {
   const resolved: Required<MockTripOptions> = {
     windowStartMs: DEFAULT_NIGHT_START_MS,

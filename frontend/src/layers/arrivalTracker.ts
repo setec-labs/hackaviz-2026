@@ -1,20 +1,21 @@
 import { countReached, type Arrival } from "../data/arrivals";
 
-/** Duree du flash d'apparition, en millisecondes reelles (independante de la vitesse). */
+/** Flash duration in real milliseconds, independent of simulation speed. */
 export const FLASH_DURATION_MS = 1400;
-/** Au-dela, un saut dans la timeline affiche les bulles sans flash ni son. */
+/** Larger timeline jumps show arrivals without flashes or sound. */
 const MAX_ARRIVALS_PER_FRAME = 200;
 const MAX_FLASHES = 40;
 
+/** A new arrival and the progress of its appearance flash. */
 export interface ArrivalFlash {
   arrival: Arrival;
-  /** Avancement du flash, de 0 (apparition) a 1 (fin). */
+  /** Flash progress from 0 (start) to 1 (end). */
   progress: number;
 }
 
 /**
- * Suit les arrivees atteintes par l'horloge, image par image, pour animer les nouvelles
- * bulles et signaler leur apparition (son). Un retour en arriere efface les flashs en cours.
+ * Track arrivals reached by the clock and notify listeners of new arrivals.
+ * Rewinding clears active flashes; large forward jumps suppress flashes and sound.
  */
 export class ArrivalTracker {
   private reached = 0;
@@ -29,12 +30,13 @@ export class ArrivalTracker {
     return this.reached;
   }
 
-  /** Se place a `time` sans flash ni notification (ouverture d'un scenario). */
+  /** Synchronize to a time without flashes or notifications. */
   sync(time: number): void {
     this.reached = countReached(this.arrivals, time);
     this.flashes = [];
   }
 
+  /** Update reached arrivals and expire flashes at the given simulation and real times. */
   update(time: number, nowMs: number): void {
     const next = countReached(this.arrivals, time);
     if (next > this.reached && next - this.reached <= MAX_ARRIVALS_PER_FRAME) {
@@ -50,6 +52,7 @@ export class ArrivalTracker {
       .slice(-MAX_FLASHES);
   }
 
+  /** Return flash progress at the given real time in milliseconds. */
   activeFlashes(nowMs: number): ArrivalFlash[] {
     return this.flashes.map(({ arrival, startMs }) => ({
       arrival,

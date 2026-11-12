@@ -1,6 +1,6 @@
 import type { GeoPoint, SafetyIndexValue, ScenarioSummary, Trip } from "../domain/types";
 
-/** Erreur levee lorsqu'une reponse d'API ne respecte pas le contrat attendu. */
+/** An API response does not satisfy the frontend's expected contract. */
 export class ContractError extends Error {
   constructor(message: string) {
     super(message);
@@ -60,8 +60,9 @@ function readTimestamp(value: unknown, where: string): number {
 }
 
 /**
- * Mode affiche pour un trajet multimodal : "transit" s'il emprunte un transport en commun,
- * "walk" s'il n'est compose que de marche et d'attente, sinon le premier mode fourni.
+ * Summarize journey modes as transit, walking, or the first non-waiting mode.
+ *
+ * @returns `null` when the journey contains no non-waiting mode.
  */
 export function summarizeJourneyMode(legModes: string[]): string | null {
   if (legModes.includes("transit")) return "transit";
@@ -94,7 +95,7 @@ function parseJourney(raw: unknown, where: string): Trip {
     const leg = readRecord(rawLeg, legWhere);
     const mode = readString(leg.mode, `${legWhere}.mode`);
     const range = leg.point_range;
-    // point_range est un intervalle semi-ouvert [debut, fin) ; les troncons partitionnent les positions.
+    // Leg ranges are half-open and must partition the coordinates in order.
     if (
       !Array.isArray(range) || range.length !== 2 || range[0] !== pointModes.length ||
       !Number.isInteger(range[1]) || range[1] <= range[0] || range[1] > coordinates.length
@@ -172,7 +173,11 @@ function parseScenarioSummary(raw: unknown, where: string): ScenarioSummary {
   };
 }
 
-/** Valide la reponse de `GET /scenarios`. */
+/**
+ * Validate and convert a routing scenario list.
+ *
+ * @throws {@link ContractError} if the response does not satisfy the expected contract.
+ */
 export function parseScenarioListResponse(raw: unknown): ScenarioSummary[] {
   if (!Array.isArray(raw)) {
     throw new ContractError("Scenarios response: expected an array");
@@ -180,7 +185,12 @@ export function parseScenarioListResponse(raw: unknown): ScenarioSummary[] {
   return raw.map((item: unknown, index) => parseScenarioSummary(item, `scenarios[${index}]`));
 }
 
-/** Valide la reponse de `GET /scenarios/{id}` et convertit ses trajets en objets du domaine. */
+/**
+ * Validate a scenario response and convert its journeys to domain trips.
+ *
+ * @param expectedId - Scenario ID that the response must match.
+ * @throws {@link ContractError} if the response does not satisfy the expected contract.
+ */
 export function parseScenarioResponse(raw: unknown, expectedId: string): Trip[] {
   const summary = parseScenarioSummary(raw, "scenario");
   if (summary.id !== expectedId) {
@@ -193,7 +203,12 @@ export function parseScenarioResponse(raw: unknown, expectedId: string): Trip[] 
   return journeys.map((journey: unknown, index) => parseJourney(journey, `journeys[${index}]`));
 }
 
-/** Valide une reponse de l'API indice et retourne les valeurs dans l'ordre des points demandes. */
+/**
+ * Validate an index response and return values in request order.
+ *
+ * @param expectedLength - Number of positions sent in the request.
+ * @throws {@link ContractError} if the response does not satisfy the expected contract.
+ */
 export function parseSafetyIndexResponse(raw: unknown, expectedLength: number): SafetyIndexValue[] {
   if (!isRecord(raw) || !Array.isArray(raw.indices)) {
     throw new ContractError("Safety response: expected an object with an `indices` array");

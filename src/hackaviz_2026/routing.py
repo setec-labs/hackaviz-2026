@@ -17,11 +17,25 @@ JourneyMode = Literal["walk_access", "walk_egress", "walk_transfer", "walk_direc
 
 
 class Destination(Position):
+    """A named destination with an optional, nonnegative population."""
+
     name: NonEmptyString
     population: int | None = Field(default=None, ge=0, strict=True)
 
 
 class JourneyLeg(BaseModel):
+    """A journey segment covering a half-open range of coordinate indices.
+
+    Attributes:
+        mode: Travel or waiting mode for this segment.
+        start_time: Timezone-aware start time.
+        end_time: Timezone-aware end time, not before ``start_time``.
+        from_stop: Segment origin identifier.
+        to_stop: Segment destination identifier.
+        gtfs_trip_id: Transport trip identifier, when available.
+        point_range: Nonempty ``[start, end)`` range in the journey coordinates.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     mode: JourneyMode
@@ -34,6 +48,7 @@ class JourneyLeg(BaseModel):
 
     @model_validator(mode="after")
     def validate_interval(self) -> Self:
+        """Reject reversed times and empty or reversed point ranges."""
         if self.end_time < self.start_time:
             raise ValueError("Leg end_time must not precede start_time")
         if self.point_range[0] >= self.point_range[1]:
@@ -42,6 +57,18 @@ class JourneyLeg(BaseModel):
 
 
 class Journey(BaseModel):
+    """A timed journey with contiguous legs and WGS84 coordinates.
+
+    Attributes:
+        journey_id: Identifier unique within the scenario.
+        destination: Named destination and optional population.
+        start_time: Timezone-aware journey start.
+        end_time: Timezone-aware journey end.
+        legs: Ordered segments covering the full journey without gaps.
+        coordinates: WGS84 ``(longitude, latitude)`` pairs.
+        offsets_s: Nondecreasing seconds from ``start_time``, one per coordinate.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     journey_id: NonEmptyString
@@ -54,6 +81,7 @@ class Journey(BaseModel):
 
     @model_validator(mode="after")
     def validate_timeline(self) -> Self:
+        """Ensure coordinates, offsets and legs form a continuous journey."""
         if self.end_time < self.start_time:
             raise ValueError("Journey end_time must not precede start_time")
         if len(self.coordinates) != len(self.offsets_s):
@@ -102,11 +130,14 @@ class ScenarioDocument(ScenarioDocumentHeader):
 
     @model_validator(mode="after")
     def validate_journeys(self) -> Self:
+        """Reject duplicate journey IDs and journeys starting before departure."""
         _check_scenario_journeys(self.journeys, self.departure_time)
         return self
 
 
 class ScenarioSummary(BaseModel):
+    """Scenario metadata and journey count without the journey payload."""
+
     model_config = ConfigDict(extra="forbid")
 
     id: ScenarioId
@@ -121,10 +152,13 @@ class ScenarioSummary(BaseModel):
 
 
 class Scenario(ScenarioSummary):
+    """A scenario summary and its validated journeys."""
+
     journeys: list[Journey] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_journey_count(self) -> Self:
+        """Check the count, journey IDs and scenario departure time."""
         if self.journey_count != len(self.journeys):
             raise ValueError("journey_count must match the number of journeys")
         _check_scenario_journeys(self.journeys, self.departure_time)
@@ -132,12 +166,16 @@ class Scenario(ScenarioSummary):
 
 
 class ReportRequest(BaseModel):
+    """Request a report for an existing scenario ID."""
+
     model_config = ConfigDict(extra="forbid")
 
     scenario_id: ScenarioId
 
 
 class JourneyReport(BaseModel):
+    """Report one journey's final position, person count and favorability score."""
+
     journey_id: NonEmptyString
     position: Position = Field(description="Final point of the journey.")
     person_count: int = Field(ge=0, strict=True)
@@ -147,5 +185,7 @@ class JourneyReport(BaseModel):
 
 
 class ReportResponse(BaseModel):
+    """A scenario report containing one result per journey."""
+
     scenario_id: ScenarioId
     journeys: list[JourneyReport]

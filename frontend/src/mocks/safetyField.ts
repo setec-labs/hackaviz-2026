@@ -2,27 +2,28 @@ import type { GeoPointDto, SafetyIndexResponseDto } from "../api/contracts";
 import { createRandom, randomBetween } from "./random";
 
 /*
- * Champ SIMULE d'indice lie au sentiment de securite.
- * Les zones sont tirees aleatoirement et n'ont AUCUN lien avec des lieux reels :
- * ces valeurs servent uniquement a tester la visualisation.
+ * Synthetic safety-index field. Randomly generated zones have no relationship
+ * to real locations and are used only to test the visualization.
  */
 
 interface Blob {
   longitude: number;
   latitude: number;
-  /** Rayon en degres. */
+  /** Radius in degrees. */
   radius: number;
-  /** Contribution a l'indice (negative = moins favorable). */
+  /** Contribution to the index; negative values are less favorable. */
   amplitude: number;
 }
 
+/** Seeded synthetic field evaluated at a geographic position. */
 export interface MockSafetyField {
   valueAt(point: GeoPointDto): number | null;
 }
 
+/** Create a reproducible synthetic field with some unavailable areas. */
 export function createMockSafetyField(seed: number): MockSafetyField {
   const random = createRandom(seed ^ 0x5afe7);
-  // Zones tirees dans le coeur de l'agglomeration, la ou passent la majorite des trajets simules.
+  // Place synthetic zones near the center where most mock trips pass.
   const randomBlob = (radius: [number, number], amplitude: [number, number]): Blob => ({
     longitude: randomBetween(random, 2.0, 2.75),
     latitude: randomBetween(random, 48.65, 49.05),
@@ -34,7 +35,7 @@ export function createMockSafetyField(seed: number): MockSafetyField {
     ...Array.from({ length: 45 }, () => randomBlob([0.008, 0.03], [-0.65, -0.3])),
     ...Array.from({ length: 12 }, () => randomBlob([0.01, 0.04], [0.08, 0.18])),
   ];
-  // Petites zones sans donnees pour exercer l'etat "indicateur non disponible".
+  // Add small missing-data areas to exercise the unavailable indicator state.
   const missingAreas: Blob[] = Array.from({ length: 10 }, () => randomBlob([0.008, 0.02], [0, 0]));
 
   return {
@@ -54,7 +55,7 @@ export function createMockSafetyField(seed: number): MockSafetyField {
   };
 }
 
-/** Produit une reponse au format de l'API indice, dans l'ordre des points demandes. */
+/** Produce a safety API-shaped response in input point order. */
 export function generateMockSafetyResponse(field: MockSafetyField, points: GeoPointDto[]): SafetyIndexResponseDto {
   return {
     indices: points.map((point) => ({ ...point, value: field.valueAt(point) })),

@@ -3,10 +3,6 @@ import type { SafetyIndexClient, ScenariosClient } from "../clients";
 import type { SafetyIndexRequestDto } from "../contracts";
 import { parseSafetyIndexResponse, parseScenarioListResponse, parseScenarioResponse } from "../validation";
 
-/*
- * Clients des API FastAPI : `services/routing` (scenarios) et `services/safety` (indice).
- */
-
 const SAFETY_BATCH_SIZE = 5000;
 
 async function readJson(response: Response, service: string): Promise<unknown> {
@@ -16,6 +12,7 @@ async function readJson(response: Response, service: string): Promise<unknown> {
   return response.json();
 }
 
+/** Loads and validates scenario data from the routing API. */
 export class FastApiScenariosClient implements ScenariosClient {
   constructor(private readonly baseUrl: string) {}
 
@@ -31,6 +28,7 @@ export class FastApiScenariosClient implements ScenariosClient {
   }
 }
 
+/** Loads safety indices in batches respecting the API's 5,000-position limit. */
 export class FastApiSafetyIndexClient implements SafetyIndexClient {
   constructor(private readonly baseUrl: string) {}
 

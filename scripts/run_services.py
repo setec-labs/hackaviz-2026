@@ -34,6 +34,8 @@ STOP_TIMEOUT_SECONDS = 5.0
 
 @dataclass(frozen=True)
 class ServiceSpec:
+    """Command, working directory and URL for a local service."""
+
     name: str
     command: list[str]
     cwd: Path
@@ -45,7 +47,17 @@ class LaunchError(RuntimeError):
 
 
 def build_specs(names: Sequence[str], reload: bool, uv: str, npm: str) -> list[ServiceSpec]:
-    """Build the commands of the selected services, in the canonical order."""
+    """Build service commands in the canonical launch order.
+
+    Args:
+        names: Selected service names.
+        reload: Whether Python services should reload on code changes.
+        uv: Path or command name for uv.
+        npm: Path or command name for npm.
+
+    Returns:
+        A specification for each selected, recognized service.
+    """
     specs: list[ServiceSpec] = []
     for name in SERVICE_NAMES:
         if name not in names:
@@ -63,13 +75,18 @@ def build_specs(names: Sequence[str], reload: bool, uv: str, npm: str) -> list[S
 
 
 def build_prepare_command(names: Sequence[str], uv: str) -> list[str] | None:
-    """Command refreshing the simplified scenario files read by the routing API, if routing is launched."""
+    """Return the scenario optimization command when routing is selected."""
     if "routing" not in names:
         return None
     return [uv, "run", "--package", "routing", "optimize-scenarios"]
 
 
 def find_executable(name: str) -> str:
+    """Find an executable on PATH.
+
+    Raises:
+        LaunchError: The executable cannot be found.
+    """
     path = shutil.which(name)
     if path is None:
         raise LaunchError(f"'{name}' was not found in PATH.")
@@ -77,11 +94,17 @@ def find_executable(name: str) -> str:
 
 
 def check_prerequisites(specs: Sequence[ServiceSpec], frontend_dir: Path = FRONTEND_DIR) -> None:
+    """Check that frontend dependencies exist when the frontend is selected.
+
+    Raises:
+        LaunchError: The frontend's ``node_modules`` directory is missing.
+    """
     if any(spec.name == "frontend" for spec in specs) and not (frontend_dir / "node_modules").is_dir():
         raise LaunchError("Frontend dependencies are missing: run 'npm install' in the frontend folder.")
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse the service launcher options."""
     parser = argparse.ArgumentParser(description="Launch the Hackaviz 2026 services locally.")
     parser.add_argument(
         "--only",
@@ -99,6 +122,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 
 class ServiceRunner:
+    """Start selected services, forward output and stop their process trees."""
+
     def __init__(self, specs: Sequence[ServiceSpec]) -> None:
         self._specs = list(specs)
         self._processes: dict[str, subprocess.Popen[str]] = {}
@@ -107,10 +132,12 @@ class ServiceRunner:
         self._label_width = max(len(spec.name) for spec in self._specs)
 
     def log(self, name: str, message: str) -> None:
+        """Print a service-prefixed message without interleaving output."""
         with self._print_lock:
             print(f"[{name.ljust(self._label_width)}] {message}", flush=True)
 
     def start(self) -> None:
+        """Start all service processes and forward their combined output."""
         env = {**os.environ, "PYTHONUNBUFFERED": "1"}
         for spec in self._specs:
             self.log(spec.name, f"starting on {spec.url}")
@@ -138,6 +165,7 @@ class ServiceRunner:
             self.log(name, line.rstrip())
 
     def wait_for_first_exit(self) -> tuple[str, int]:
+        """Wait for a service to exit and return its name and exit code."""
         while True:
             for name, process in self._processes.items():
                 code = process.poll()
@@ -146,6 +174,7 @@ class ServiceRunner:
             time.sleep(0.5)
 
     def stop(self) -> None:
+        """Stop all running service trees, escalating after the timeout."""
         for name, process in self._processes.items():
             if process.poll() is None:
                 self.log(name, "stopping")
@@ -187,6 +216,7 @@ def _kill_tree(process: subprocess.Popen[str]) -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Prepare scenarios, run the selected services and return an exit status."""
     # Child output may contain characters the console encoding cannot represent (e.g. cp1252).
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):

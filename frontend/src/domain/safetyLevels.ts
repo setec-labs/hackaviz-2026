@@ -2,8 +2,8 @@ import type { SafetyIndexValue } from "./types";
 import { palette, rgba, rgbToHex, type Rgba } from "../theme/palette";
 
 /*
- * Correspondance entre l'indice (0..1, 1 = plus favorable) et sa representation.
- * Ces seuils sont un choix de visualisation, pas une classification du danger d'un lieu.
+ * Visual representation of the normalized index (1 is most favorable).
+ * Thresholds are visualization choices, not a classification of danger.
  */
 
 export type SafetyLevelId = "favorable" | "intermediate" | "vigilance" | "high-vigilance" | "unavailable";
@@ -11,11 +11,11 @@ export type SafetyLevelId = "favorable" | "intermediate" | "vigilance" | "high-v
 export interface SafetyLevel {
   id: SafetyLevelId;
   label: string;
-  /** Borne basse incluse de l'intervalle (non pertinent pour "unavailable"). */
+  /** Inclusive lower bound; not applicable to "unavailable". */
   minValue: number;
-  /** Representation hexadecimale de la couleur (pour l'interface). */
+  /** Hexadecimal UI color. */
   color: string;
-  /** Rayon en pixels du point de tete : la taille double la couleur comme indice visuel. */
+  /** Head marker radius in pixels, supplementing color as a visual cue. */
   markerRadiusPx: number;
 }
 
@@ -29,7 +29,7 @@ function mix(a: Rgba, b: Rgba, t: number): Rgba {
   return [0, 1, 2, 3].map((i) => Math.round((a[i] ?? 0) + ((b[i] ?? 0) - (a[i] ?? 0)) * t)) as Rgba;
 }
 
-/** Couleur continue : orange (vigilance elevee) -> ambre (vigilance) -> cyan (favorable). */
+/** Map an index to a continuous orange-to-amber-to-cyan gradient, or muted color when unavailable. */
 export function safetyIndexColor(value: SafetyIndexValue, alpha = 255): Rgba {
   if (value === null) {
     return rgba("textMuted", alpha);
@@ -68,6 +68,7 @@ export const UNAVAILABLE_LEVEL: SafetyLevel = {
   markerRadiusPx: 3,
 };
 
+/** Map an index to a labeled visualization level, including unavailable values. */
 export function classifySafetyIndex(value: SafetyIndexValue): SafetyLevel {
   if (value === null || !Number.isFinite(value)) {
     return UNAVAILABLE_LEVEL;

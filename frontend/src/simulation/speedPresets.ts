@@ -1,6 +1,7 @@
+/** Playback speed label and its real-time duration per simulated hour. */
 export interface SpeedPreset {
   label: string;
-  /** Secondes reelles pour 1 heure simulee. */
+  /** Real seconds per simulated hour. */
   realSecondsPerSimHour: number;
 }
 

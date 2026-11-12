@@ -1,10 +1,10 @@
 import type { Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 import { palette } from "../theme/palette";
 
-/** Fond vectoriel sombre CARTO (donnees OpenStreetMap), sans cle d'API. */
+/** CARTO dark vector basemap using OpenStreetMap data, without an API key. */
 export const BASEMAP_STYLE_URL = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
-/** Vue initiale centree sur l'Ile-de-France. */
+/** Initial view centered on Île-de-France. */
 export const INITIAL_VIEW = {
   center: [2.42, 48.84] as [number, number],
   zoom: 9.2,
@@ -12,7 +12,7 @@ export const INITIAL_VIEW = {
   maxZoom: 17,
 };
 
-/** Style minimal utilise si le fond de carte distant ne peut pas etre charge. */
+/** Minimal style used when the remote basemap cannot be loaded. */
 export const FALLBACK_STYLE: StyleSpecification = {
   version: 8,
   sources: {},
@@ -26,11 +26,11 @@ function trySetPaint(map: MapLibreMap, layerId: string, property: PaintProperty,
   try {
     map.setPaintProperty(layerId, property, value);
   } catch {
-    // Certaines couches du style ne supportent pas la propriete : on les laisse telles quelles.
+    // Leave layers unchanged when the style does not support a paint property.
   }
 }
 
-/** Reteinte le fond CARTO avec la palette du projet pour garder une identite nocturne coherente. */
+/** Recolor supported CARTO layers using the project's night palette. */
 export function applyNightPalette(map: MapLibreMap): void {
   for (const layer of map.getStyle().layers ?? []) {
     const id = layer.id.toLowerCase();

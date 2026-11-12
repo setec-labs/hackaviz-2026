@@ -1,71 +1,76 @@
 /**
- * Contrats JSON des API FastAPI, refletant des modeles Pydantic (noms en snake_case).
- * - routing : `ScenarioSummary` / `Scenario` / `Journey` de `src/hackaviz_2026/routing.py` ;
- * - safety : `SafetyIndexRequest` / `SafetyIndexResponse` de `src/hackaviz_2026/models.py`.
+ * FastAPI JSON contracts mirroring the shared Pydantic models, using snake_case.
+ * Routing models are defined in `src/hackaviz_2026/routing.py` and safety
+ * models in `src/hackaviz_2026/models.py`.
  */
 
+/** WGS84 position sent to or received from an API. */
 export interface GeoPointDto {
   latitude: number;
   longitude: number;
 }
 
-/** API 1 (routing) : element de `GET /scenarios`. */
+/** A routing `GET /scenarios` result. */
 export interface ScenarioSummaryDto {
   id: string;
   name: string;
   description: string;
   metadata_generated: boolean;
   origin: GeoPointDto;
-  /** Date/heure ISO 8601 avec fuseau. */
+  /** ISO 8601 departure time with a timezone. */
   departure_time: string;
   journey_count: number;
 }
 
+/** Named journey destination, with population when available. */
 export interface DestinationDto extends GeoPointDto {
   name: string;
   population?: number | null;
 }
 
+/** A journey leg and the coordinate range it owns. */
 export interface JourneyLegDto {
-  /** `walk_access`, `walk_egress`, `walk_transfer`, `walk_direct`, `wait`, `transit`. */
+  /** One of `walk_access`, `walk_egress`, `walk_transfer`, `walk_direct`, `wait`, or `transit`. */
   mode: string;
   start_time: string;
   end_time: string;
   from_stop: string;
   to_stop: string;
   gtfs_trip_id: string | null;
-  /** Intervalle semi-ouvert [debut, fin) d'indices dans `coordinates`. */
+  /** Half-open [start, end) index range in `coordinates`. */
   point_range: [number, number];
 }
 
+/** Routing journey with aligned coordinates and offsets. */
 export interface JourneyDto {
   journey_id: string;
   destination: DestinationDto;
   start_time: string;
   end_time: string;
   legs: JourneyLegDto[];
-  /** Positions au format [longitude, latitude]. */
+  /** WGS84 positions as [longitude, latitude]. */
   coordinates: [number, number][];
-  /** Secondes depuis `start_time`, une valeur par coordonnee. */
+  /** Seconds since `start_time`, one per coordinate. */
   offsets_s: number[];
 }
 
-/** API 1 (routing) : reponse de `GET /scenarios/{scenario_id}`. */
+/** Routing `GET /scenarios/{scenario_id}` response. */
 export interface ScenarioDto extends ScenarioSummaryDto {
   journeys: JourneyDto[];
 }
 
-/** API 2 (safety) : requete batch `POST /safety-index`. */
+/** Safety `POST /safety-index` batch request. */
 export interface SafetyIndexRequestDto {
   points: GeoPointDto[];
 }
 
+/** An index associated with a requested position. */
 export interface SafetyIndexDto extends GeoPointDto {
-  /** Indice dans [0, 1] (1 = plus favorable) ou null si non disponible. */
+  /** Normalized index in [0, 1], where 1 is most favorable, or null if unavailable. */
   value: number | null;
 }
 
-/** Les indices sont renvoyes dans le meme ordre que les points demandes. */
+/** Indices in the same order as the requested positions. */
 export interface SafetyIndexResponseDto {
   indices: SafetyIndexDto[];
 }

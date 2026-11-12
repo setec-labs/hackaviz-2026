@@ -13,7 +13,7 @@ const MARKERS: Record<StatusOverlayProps["kind"], string> = {
   empty: "∅",
 };
 
-/** Message central pour les etats chargement, erreur et absence de donnees. */
+/** Show a central loading, error or empty-state message with an optional retry. */
 export function StatusOverlay({ kind, title, children, onRetry }: StatusOverlayProps) {
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">

@@ -5,11 +5,12 @@ import { hashString } from "./random";
 import { createMockSafetyField, generateMockSafetyResponse, type MockSafetyField } from "./safetyField";
 import { generateMockScenario } from "./tripGenerator";
 
+/** Seed, data volume, latency and failure settings for mock clients. */
 export interface MockClientOptions {
   tripCount: number;
   seed: number;
   latencyMs: number;
-  /** Simule une panne pour verifier les etats d'erreur de l'interface. */
+  /** Simulate a failure to exercise the UI's error states. */
   fail: boolean;
 }
 
@@ -20,7 +21,7 @@ interface MockScenarioDefinition {
   origin: GeoPoint;
 }
 
-/** Scenarios simules : origines fixes, trajets synthetiques ne suivant pas le reseau reel. */
+/** Mock scenarios with fixed origins and synthetic trips unrelated to the real network. */
 export const MOCK_SCENARIOS: readonly MockScenarioDefinition[] = [
   {
     id: "mock-chatelet",
@@ -61,8 +62,8 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 /**
- * Simule l'API routing. Les reponses passent par JSON puis par les memes validateurs que le
- * client HTTP, afin que le reste de l'application ne fasse aucune difference.
+ * Simulate the routing API and pass JSON responses through the HTTP client's
+ * validators so consumers receive the same domain types.
  */
 export class MockScenariosClient implements ScenariosClient {
   constructor(private readonly options: MockClientOptions) {}
@@ -97,6 +98,7 @@ export class MockScenariosClient implements ScenariosClient {
   }
 }
 
+/** Simulate the safety API using a seeded synthetic field. */
 export class MockSafetyIndexClient implements SafetyIndexClient {
   private readonly field: MockSafetyField;
 

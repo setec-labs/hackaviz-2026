@@ -3,12 +3,13 @@ import type { ScenariosClient } from "../api/clients";
 import type { ScenarioSummary } from "../domain/types";
 import { describeError } from "./useTripData";
 
+/** Loading, error and success states for the scenario catalog. */
 export type ScenarioListState =
   | { status: "loading" }
   | { status: "error"; message: string }
   | { status: "success"; scenarios: ScenarioSummary[] };
 
-/** Charge le catalogue des scenarios (points de depart affiches sur la carte). */
+/** Load the scenario catalog and expose a retry callback; cancel stale requests. */
 export function useScenarios(client: ScenariosClient): ScenarioListState & { reload: () => void } {
   const [state, setState] = useState<ScenarioListState>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
