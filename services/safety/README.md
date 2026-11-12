@@ -55,58 +55,58 @@ uv run --package safety uvicorn safety.main:app --port 8002 --reload
 ```
 
 Le port 8002 est celui attendu par le frontend. Le script `scripts/run_services.py`
-? la racine lance tous les services. La documentation interactive est disponible
+à la racine lance tous les services. La documentation interactive est disponible
 sur `http://localhost:8002/docs`.
 
 Variables d'environnement :
 
-- `SAFETY_LIGHTING_RASTER` : chemin du raster d'?clairage (par d?faut
+- `SAFETY_LIGHTING_RASTER` : chemin du raster d'éclairage (par défaut
   `src/safety/luminosite.tif`) ;
-- `SAFETY_CORS_ORIGINS` : origines autoris?es, s?par?es par des virgules (par
-  d?faut `http://localhost:5173,http://127.0.0.1:5173`, le serveur Vite).
+- `SAFETY_CORS_ORIGINS` : origines autorisées, séparées par des virgules (par
+  défaut `http://localhost:5173,http://127.0.0.1:5173`, le serveur Vite).
 
 ## API des indicateurs
 
-- `GET /indicators` retourne les m?tadonn?es des indicateurs disponibles.
-- `POST /evaluate` re?oit `{"position": {"latitude": 48.8566, "longitude": 2.3522}}`
-  et retourne la position et les r?sultats de tous les indicateurs.
-- `POST /score` re?oit une position et une liste `weights` contenant des objets
+- `GET /indicators` retourne les métadonnées des indicateurs disponibles.
+- `POST /evaluate` reçoit `{"position": {"latitude": 48.8566, "longitude": 2.3522}}`
+  et retourne la position et les résultats de tous les indicateurs.
+- `POST /score` reçoit une position et une liste `weights` contenant des objets
   `{"indicator_id": "lighting", "weight": 1.0}`. Il retourne la position,
-  les r?sultats des indicateurs demand?s et leur moyenne pond?r?e.
-- `POST /safety-index` re?oit `{"points": [{"latitude": ..., "longitude": ...}, ...]}`
+  les résultats des indicateurs demandés et leur moyenne pondérée.
+- `POST /safety-index` reçoit `{"points": [{"latitude": ..., "longitude": ...}, ...]}`
   (5 000 points au plus) et retourne `{"indices": [{"latitude": ..., "longitude": ..., "value": ...}]}`
-  dans l'ordre des points. `value` est la moyenne ? poids ?gaux de tous les
-  indicateurs, ou `null` si une donn?e manque ? cette position. C'est la route
-  utilis?e par le frontend.
+  dans l'ordre des points. `value` est la moyenne à poids égaux de tous les
+  indicateurs, ou `null` si une donnée manque à cette position. C'est la route
+  utilisée par le frontend.
 
-Tous les r?sultats et le score global sont compris entre 0 et 1 : 0 repr?sente
+Tous les résultats et le score global sont compris entre 0 et 1 : 0 représente
 la situation la moins favorable et 1 la plus favorable. Ces indicateurs ne
-constituent pas une preuve objective de danger. Les coordonn?es sont exprim?es
+constituent pas une preuve objective de danger. Les coordonnées sont exprimées
 en WGS84 (EPSG:4326).
 
-Les poids doivent ?tre finis et positifs ou nuls ; au moins un doit ?tre
-strictement positif. Les identifiants doivent ?tre uniques et connus. Un
-indicateur associ? ? un poids nul est tout de m?me ?valu? et inclus dans la
-r?ponse.
+Les poids doivent être finis et positifs ou nuls ; au moins un doit être
+strictement positif. Les identifiants doivent être uniques et connus. Un
+indicateur associé à un poids nul est tout de même évalué et inclus dans la
+réponse.
 
-Codes d'erreur : 422 pour une entr?e invalide, 400 pour un identifiant inconnu,
-404 si aucune donn?e ne couvre la position (`/evaluate` et `/score`), 501 pour un
-indicateur non impl?ment? et 503 si la donn?e source est absente ou illisible.
+Codes d'erreur : 422 pour une entrée invalide, 400 pour un identifiant inconnu,
+404 si aucune donnée ne couvre la position (`/evaluate` et `/score`), 501 pour un
+indicateur non implémenté et 503 si la donnée source est absente ou illisible.
 
 ## Indicateur `lighting`
 
-Source : `src/safety/luminosite.tif`, livr? sur la branche `victoria`
-(Lambert 93 / EPSG:2154, maille de 130 m, valeurs brutes de 0 ? 100 dont
-l'unit? n'est pas document?e).
+Source : `src/safety/luminosite.tif`, livré sur la branche `victoria`
+(Lambert 93 / EPSG:2154, maille de 130 m, valeurs brutes de 0 à 100 dont
+l'unité n'est pas documentée).
 
-Calcul : position WGS84 ? reprojection dans le CRS du raster (pyproj) ? pixel
-contenant la position ? valeur brute (rasterio) ? score lin?aire `valeur / 100`.
+Calcul : position WGS84 → reprojection dans le CRS du raster (pyproj) → pixel
+contenant la position → valeur brute (rasterio) → score linéaire `valeur / 100`.
 
-La distribution est tr?s concentr?e vers 0 (m?diane 0, 95 % des pixels sous
-2,7) : avec cette normalisation lin?aire, la plupart des lieux obtiennent un
-score faible (Ch?telet ? 0,20, Gare du Nord ? 0,17, bois de Vincennes ? 0,001).
-Une position hors du raster ou sans donn?e (nodata) n'a pas de score. Une valeur
-brute hors de [0, 100] est trait?e comme une donn?e invalide (503).
+La distribution est très concentrée vers 0 (médiane 0, 95 % des pixels sous
+2,7) : avec cette normalisation linéaire, la plupart des lieux obtiennent un
+score faible (Châtelet ≈ 0,20, Gare du Nord ≈ 0,17, bois de Vincennes ≈ 0,001).
+Une position hors du raster ou sans donnée (nodata) n'a pas de score. Une valeur
+brute hors de [0, 100] est traitée comme une donnée invalide (503).
 
 ## Tests
 
