@@ -34,8 +34,16 @@ Ce projet a été développé dans le cadre du Hackaviz Mobilités 2026 spécial
 
 
 ## Installation et utilisation
-> [!TIP]
-> Si vous avez le temps, vous pouvez décrire les étapes d'installation de votre projet (commandes à lancer, ...) et son fonctionnement.
+
+Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour l'installation. Pour lancer les services et le frontend :
+
+```text
+uv sync
+cd frontend; npm install; cd ..
+uv run python scripts/run_services.py
+```
+
+Puis ouvrir <http://localhost:5173>.
 
 
 ## La licence
