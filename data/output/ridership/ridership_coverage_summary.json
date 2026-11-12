@@ -1,0 +1,109 @@
+{
+  "scenario_count": 11,
+  "service_dates": [
+    "2026-11-08"
+  ],
+  "source_transit_arc_occurrence_count": 36462,
+  "unique_transit_arc_count": 3873,
+  "duplicate_arc_occurrences_removed": 32589,
+  "arc_occurrence_count_by_network_class": {
+    "other": 2,
+    "rail": 13031,
+    "surface": 23429
+  },
+  "unique_arc_count_by_network_class": {
+    "other": 1,
+    "rail": 1228,
+    "surface": 2644
+  },
+  "rail_arc_share_pct_of_classified_transit_arcs": 31.707,
+  "unique_arc_count_by_validation_status": {
+    "estimated": 1131,
+    "estimated_partial_rail_station_mapping_with_fallback": 1043,
+    "estimated_with_fallback": 1698,
+    "estimated_with_network_fallback": 1
+  },
+  "baseline_method_counts": {
+    "line_daily_validations": 1527,
+    "route_peer_station_daily_validations": 1043,
+    "similar_line_daily_validations": 1118,
+    "station_daily_validations": 1228
+  },
+  "hourly_profile_method_counts": {
+    "line_other_day": 16,
+    "line_requested_day": 1015,
+    "route_peer_station_requested_day": 1084,
+    "similar_line_other_day": 36,
+    "similar_line_requested_day": 1578,
+    "station_other_day": 778,
+    "station_requested_day": 1228
+  },
+  "service_count_method_counts": {
+    "gtfs_scheduled_services": 3873
+  },
+  "vehicle_size_adjustment": {
+    "formula": "estimated_validations_per_service × vehicle_size_ratio",
+    "ratios_by_category": {
+      "bus": 1.0,
+      "cable_car": 1.0,
+      "metro": 0.25,
+      "orlyval": 0.3333333333333333,
+      "other_rail": 0.125,
+      "rer": 0.125,
+      "tramway": 0.3333333333333333
+    },
+    "arc_counts_by_category": {
+      "bus": 2563,
+      "cable_car": 1,
+      "metro": 164,
+      "orlyval": 1,
+      "other_rail": 470,
+      "rer": 594,
+      "tramway": 80
+    }
+  },
+  "arc_occurrence_count_by_validation_status": {
+    "estimated": 10974,
+    "estimated_partial_rail_station_mapping_with_fallback": 12337,
+    "estimated_with_fallback": 13149,
+    "estimated_with_network_fallback": 2
+  },
+  "arcs_without_estimate_by_network_class": {},
+  "arc_occurrences_without_estimate_by_network_class": {},
+  "surface_routes_without_validation_mapping": 172,
+  "ambiguous_surface_route_mappings": 0,
+  "rail_route_count": 31,
+  "rail_routes_with_gtfs_stations": 31,
+  "rail_validation_station_mapping": {
+    "validation_station_count": 745,
+    "gtfs_matched_validation_station_count": 741,
+    "gtfs_match_share_pct": 99.463
+  },
+  "validation_source_periods": {
+    "surface": {
+      "start": "2025-10-01",
+      "end": "2025-12-31"
+    },
+    "rail": {
+      "start": "2025-10-01",
+      "end": "2025-12-31"
+    }
+  },
+  "validation_days_used_by_source_category": {
+    "surface": {
+      "WEEKEND": 26
+    },
+    "rail": {
+      "WEEKEND": 26
+    }
+  },
+  "calculation_notes": [
+    "The value is an approximate count of validations per scheduled trip, not vehicle occupancy.",
+    "Scenario dates that use the DIJFP category use daily validation totals averaged over Saturdays and Sundays. Their hourly profile share is the unweighted mean of available DIJFP, SAHV, and SAVS profiles.",
+    "The daily validation files do not distinguish school periods; Saturday and Sunday validation totals are pooled for weekend scenarios.",
+    "Rail validations are aggregated by station and assigned in full to every GTFS rail route serving that station; shared stations can therefore be counted on multiple routes.",
+    "Missing validation baselines and hourly profiles are imputed from same-line other-day data, similar lines/stations, or network averages, with the method recorded per arc.",
+    "A scheduled service is counted once per route and hour if its GTFS trip overlaps that hour.",
+    "If the GTFS service count is zero for an observed transit arc, the estimate uses a minimum service count of one."
+  ]
+}
