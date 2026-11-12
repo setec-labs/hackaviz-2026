@@ -417,57 +417,114 @@ def main(argv: list[str] | None = None) -> None:
                 relax_direct_transfers(t, arr_t, arrival)
     # %% Sample destinations
     destinations = [
-        ('Tour Eiffel',48.8584, 2.2945),  # Tour Eiffel
-        ('Gare du Nord',48.8766, 2.3522),  # Gare du Nord
-        ('Orly',48.7247, 2.2587),  # Orly
+        ("Tour Eiffel", 48.8584, 2.2945, None),
+        ("Gare du Nord", 48.8766, 2.3522, None),
+        ("Orly", 48.7247, 2.2587, None),
     ]
     # %% Load commune town hall destinations
     USE_COMMUNE_MAIRIES = args.all_communes
-    COMMUNES_IDF_MAIRIES_JSON = CACHE_DIR / "communes_idf_mairies.json"
+    COMMUNES_IDF_MAIRIES_JSON = (
+        CACHE_DIR / "communes_idf_mairies_population_v2.json"
+    )
 
     def load_idf_commune_mairies():
         if COMMUNES_IDF_MAIRIES_JSON.is_file():
             with COMMUNES_IDF_MAIRIES_JSON.open(encoding="utf-8") as communes_file:
-                communes = json.load(communes_file)
+                cached_data = json.load(communes_file)
+            if not isinstance(cached_data, dict) or cached_data.get("schema_version") != 2:
+                raise ValueError(
+                    f"Version de cache des communes invalide : {COMMUNES_IDF_MAIRIES_JSON}"
+                )
+            communes = cached_data.get("communes")
+            paris_arrondissements = cached_data.get("paris_arrondissements")
         else:
-            url = (
+            headers = {"User-Agent": "hackaviz-2026-transit-accessibility/1.0"}
+            communes_url = (
                 "https://geo.api.gouv.fr/communes?codeRegion=11"
-                "&fields=nom,code,mairie&format=json"
+                "&fields=nom,code,population,mairie&format=json"
             )
-            request = Request(
-                url,
-                headers={"User-Agent": "hackaviz-2026-transit-accessibility/1.0"},
+            arrondissements_url = (
+                "https://geo.api.gouv.fr/communes?codeDepartement=75"
+                "&type=arrondissement-municipal"
+                "&fields=nom,code,population,mairie&format=json"
             )
             try:
-                with urlopen(request, timeout=60) as response:
+                with urlopen(Request(communes_url, headers=headers), timeout=60) as response:
                     communes = json.load(response)
+                with urlopen(Request(arrondissements_url, headers=headers), timeout=60) as response:
+                    paris_arrondissements = json.load(response)
             except Exception as exc:
                 raise RuntimeError(
-                    f"Impossible de télécharger les coordonnées des mairies : {url}"
+                    "Impossible de télécharger les communes et arrondissements "
+                    f"avec leurs populations : {exc}"
                 ) from exc
             if not isinstance(communes, list) or not communes:
                 raise ValueError("L'API n'a renvoyé aucune commune d'Île-de-France.")
+            if not isinstance(paris_arrondissements, list):
+                raise ValueError("La liste des arrondissements municipaux de Paris est invalide.")
+            expected_arrondissement_codes = {
+                f"751{arrondissement:02d}" for arrondissement in range(1, 21)
+            }
+            received_arrondissement_codes = {
+                arrondissement.get("code")
+                for arrondissement in paris_arrondissements
+                if isinstance(arrondissement, dict)
+            }
+            if received_arrondissement_codes != expected_arrondissement_codes:
+                raise ValueError(
+                    "L'API doit fournir exactement les 20 arrondissements municipaux de Paris ; "
+                    f"codes reçus : {sorted(received_arrondissement_codes)}"
+                )
             COMMUNES_IDF_MAIRIES_JSON.parent.mkdir(parents=True, exist_ok=True)
             COMMUNES_IDF_MAIRIES_JSON.write_text(
-                json.dumps(communes, ensure_ascii=False), encoding="utf-8"
+                json.dumps(
+                    {
+                        "schema_version": 2,
+                        "communes": communes,
+                        "paris_arrondissements": paris_arrondissements,
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
             )
 
-        if not isinstance(communes, list) or not communes:
+        if (
+            not isinstance(communes, list)
+            or not communes
+            or not isinstance(paris_arrondissements, list)
+        ):
             raise ValueError(
                 f"Le cache des mairies est vide ou invalide : {COMMUNES_IDF_MAIRIES_JSON}"
             )
 
         destinations = []
         missing_mairies = []
-        for commune in communes:
+
+        # Paris is represented by its 20 municipal arrondissements below.
+        paris_records = [
+            commune for commune in communes
+            if isinstance(commune, dict) and commune.get("code") == "75056"
+        ]
+        if len(paris_records) != 1:
+            raise ValueError("La liste des communes doit contenir exactement Paris (75056).")
+        communes_without_paris = [
+            commune for commune in communes
+            if not isinstance(commune, dict) or commune.get("code") != "75056"
+        ]
+
+        for commune in [*communes_without_paris, *paris_arrondissements]:
             if not isinstance(commune, dict):
                 missing_mairies.append("<commune invalide>")
                 continue
             town_hall = commune.get("mairie")
             coordinates = town_hall.get("coordinates") if isinstance(town_hall, dict) else None
+            population = commune.get("population")
             if (
                 not commune.get("nom")
                 or not commune.get("code")
+                or not isinstance(population, int)
+                or isinstance(population, bool)
+                or population < 0
                 or not isinstance(town_hall, dict)
                 or town_hall.get("type") != "Point"
                 or not isinstance(coordinates, list)
@@ -481,7 +538,12 @@ def main(argv: list[str] | None = None) -> None:
                     f"Coordonnées de mairie invalides pour {commune['code']}: {coordinates}"
                 )
             destinations.append(
-                (f"{commune['nom']} ({commune['code']})", latitude, longitude)
+                (
+                    f"{commune['nom']} ({commune['code']})",
+                    latitude,
+                    longitude,
+                    population,
+                )
             )
 
         if missing_mairies:
@@ -593,7 +655,7 @@ def main(argv: list[str] | None = None) -> None:
     # La liste d'exemple existante peut être remplacée par toutes les adresses.
     destinations_df = pd.DataFrame(
         destinations,
-        columns=["name", "lat", "lon"]
+        columns=["name", "lat", "lon", "population"]
     )
     destination_x, destination_y = walk_transformer.transform(
         destinations_df["lon"].to_numpy(),
@@ -1253,6 +1315,7 @@ def main(argv: list[str] | None = None) -> None:
 
     class DestinationModel(LocationModel):
         name: str
+        population: Optional[int] = None
 
     class LegModel(BaseModel):
         mode: str
@@ -1360,6 +1423,11 @@ def main(argv: list[str] | None = None) -> None:
                 name=str(destination_row["name"]),
                 latitude=float(destination_row["lat"]),
                 longitude=float(destination_row["lon"]),
+                population=(
+                    None
+                    if pd.isna(destination_row["population"])
+                    else int(destination_row["population"])
+                ),
             ),
             start_time=service_day_start + timedelta(seconds=journey_start_s),
             end_time=service_day_start + timedelta(seconds=float(steps.iloc[-1]["end_s"])),

@@ -84,9 +84,14 @@ Pour calculer une destination à la mairie de chaque commune d'Île-de-France :
 uv run --package routing transit-accessibility --all-communes
 ```
 
-Les coordonnées des mairies sont téléchargées depuis `geo.api.gouv.fr` en une
-seule requête et mises en cache dans `communes_idf_mairies.json` dans le dossier
-de sortie. Pour un essai limité, combinez par exemple
+Les coordonnées des mairies et les populations sont téléchargées depuis
+`geo.api.gouv.fr`, puis mises en cache dans
+`communes_idf_mairies_population_v2.json` dans le dossier de cache. Chaque
+commune francilienne est une destination ; Paris est remplacée par ses 20
+arrondissements municipaux, chacun avec son propre point de mairie et sa
+population. Le champ `destination.population` du JSON exporté est un entier
+(les trois destinations de démonstration ont `null`). Pour un essai limité,
+combinez par exemple
 `--all-communes --max-destinations 10`. La date, l'heure, l'origine,
 les dossiers de données et de sortie peuvent être ajustés avec `--service-date`,
 `--departure-time`, `--origin-lat`, `--origin-lon`, `--data-dir` et
