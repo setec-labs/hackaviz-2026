@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+/* Keep the project palette synchronized with src/theme/palette.ts. */
+@theme {
+  --color-night: #061b3a;
+  --color-surface: #0b2f5b;
+  --color-surface-raised: #164878;
+  --color-network: #286fae;
+  --color-trip: #35c5f4;
+  --color-selection: #8de5fa;
+  --color-ink: #f3f8fc;
+  --color-ink-muted: #a9c4dd;
+  --color-neutral: #9097a3;
+  --color-highlight: #ffe08a;
+  --color-vigilance: #ffbf47;
+  --color-vigilance-high: #ff7a45;
+
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", "Consolas", ui-monospace, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background-color: var(--color-night);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.maplibregl-canvas {
+  cursor: crosshair;
+}
+
+.maplibregl-ctrl-group {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-surface-raised);
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top-color: var(--color-surface-raised) !important;
+}
+
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.2);
+}
+
+.maplibregl-ctrl-attrib {
+  background: color-mix(in srgb, var(--color-night) 80%, transparent) !important;
+  color: var(--color-ink-muted);
+}
+
+.maplibregl-ctrl-attrib a {
+  color: var(--color-ink-muted);
+}
+
+.timeline {
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    var(--color-trip) 0%,
+    var(--color-trip) var(--progress, 0%),
+    var(--color-surface-raised) var(--progress, 0%)
+  );
+  cursor: pointer;
+}
+
+.timeline:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.timeline:focus-visible {
+  outline: 2px solid var(--color-selection);
+  outline-offset: 4px;
+}
+
+.timeline::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--color-selection);
+  border: 2px solid var(--color-night);
+}
+
+.timeline::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--color-selection);
+  border: 2px solid var(--color-night);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin {
+    animation: none;
+  }
+}

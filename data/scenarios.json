@@ -1,0 +1,79 @@
+[
+  {
+    "scenario_id": "Metropolis-4h",
+    "description": "Sortie_du_club_Metropolis_à_4h",
+    "origin_lat": 48.757657,
+    "origin_lon": 2.348038,
+    "departure_time": "04:00:00"
+  },
+  {
+    "scenario_id": "AccorHotel-Arena-0h",
+    "description": "Sortie_de_concert_à_l'AccorHotel_Arena_à_0h",
+    "origin_lat": 48.839492,
+    "origin_lon": 2.380064,
+    "departure_time": "00:05:00"
+  },
+  {
+    "scenario_id": "CHU-Avicenne-5h",
+    "description" : "Sortie_de_3x8_à_l'hôpital_Avicenne_de_Bobogny_à_5h",
+    "origin_lat": 48.915992,
+    "origin_lon": 2.424765,
+    "departure_time": "05:00:00"
+  },
+  {
+    "scenario_id": "La-Defense-0h",
+    "description" : "Sortie_du_quartier_de_La_Défense_à_0h",
+    "origin_lat": 48.892123,
+    "origin_lon": 2.237308,
+    "departure_time": "00:05:00"
+  },
+  {
+    "scenario_id": "Mogador-1h",
+    "description" : "Sortie_du_théâtre_Mogador_à_1h",
+    "origin_lat": 48.875521,
+    "origin_lon": 2.331282,
+    "departure_time": "01:00:00"
+  },
+  {
+    "scenario_id": "Stade-de-France-1h",
+    "description" : "Sortie_de_concert_au_Stade_de_France_à_1h",
+    "origin_lat": 48.924156,
+    "origin_lon":  2.357801,
+    "departure_time": "01:00:00"
+  },
+  {
+    "scenario_id": "Noct-5h",
+    "description" : "Sortie_du_club_Le_Noct_(Pantin)_à_5h",
+    "origin_lat": 48.897516,
+    "origin_lon": 2.404863,
+    "departure_time": "05:00:00"
+  },
+  {
+    "scenario_id": "Roissy-3h",
+    "description" : "Sortie_de_la_plateforme_Roissy-CDG_(Roissypôle)_à_3h",
+    "origin_lat": 49.009923,
+    "origin_lon": 2.561343,
+    "departure_time": "03:00:00"
+  },
+  {
+    "scenario_id": "Beclere-5h",
+    "description" : "Sortie_de_3x8_à_l'hôpital_Béclère_de_Clamart_à_5h",
+    "origin_lat": 48.787149,
+    "origin_lon": 2.255368,
+    "departure_time": "05:00:00"
+  },
+  {
+    "scenario_id": "Pigalle-2h",
+    "description" : "Sortie_de_bar_à_Pigalle_à_2h",
+    "origin_lat": 48.882875,
+    "origin_lon": 2.333120,
+    "departure_time": "02:00:00"
+  },
+  {
+    "scenario_id": "Descartes-3h",
+    "description" : "Sortie_de_concert_à_Bercy_à_3h",
+    "origin_lat": 48.841454,
+    "origin_lon": 2.586127,
+    "departure_time": "03:00:00"
+  }
+]

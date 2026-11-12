@@ -1,0 +1,47 @@
+/**
+ * Shared TypeScript palette for deck.gl and MapLibre.
+ * Keep the matching Tailwind `@theme` values in `src/index.css` synchronized.
+ */
+export const palette = {
+  background: "#061B3A",
+  surface: "#0B2F5B",
+  surfaceRaised: "#164878",
+  network: "#286FAE",
+  trip: "#35C5F4",
+  selection: "#8DE5FA",
+  text: "#F3F8FC",
+  textMuted: "#A9C4DD",
+  neutral: "#9097A3",
+  highlight: "#FFE08A",
+  vigilance: "#FFBF47",
+  vigilanceHigh: "#FF7A45",
+} as const;
+
+export type PaletteColor = keyof typeof palette;
+
+export type Rgb = [number, number, number];
+export type Rgba = [number, number, number, number];
+
+/** Convert a six-digit hexadecimal color to RGB channels.
+ *
+ * @throws Error if the color is not a six-digit hexadecimal value.
+ */
+export function hexToRgb(hex: string): Rgb {
+  const match = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!match?.[1]) {
+    throw new Error(`Invalid hex color: ${hex}`);
+  }
+  const value = Number.parseInt(match[1], 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+}
+
+/** Convert a palette color to RGBA with the supplied alpha channel. */
+export function rgba(color: PaletteColor, alpha = 255): Rgba {
+  const [r, g, b] = hexToRgb(palette[color]);
+  return [r, g, b, alpha];
+}
+
+/** Format RGB channels as a hexadecimal color, ignoring alpha when present. */
+export function rgbToHex([r, g, b]: Rgb | Rgba): string {
+  return `#${[r, g, b].map((channel) => Math.round(channel).toString(16).padStart(2, "0")).join("")}`;
+}
