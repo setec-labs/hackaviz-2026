@@ -12,6 +12,7 @@ export const palette = {
   selection: "#8DE5FA",
   text: "#F3F8FC",
   textMuted: "#A9C4DD",
+  neutral: "#9097A3",
   highlight: "#FFE08A",
   vigilance: "#FFBF47",
   vigilanceHigh: "#FF7A45",

@@ -1,9 +1,12 @@
 import { safetyIndexColor } from "../domain/safetyLevels";
+import { implausibleTripColor, isImplausibleTrip } from "../domain/tripPlausibility";
 import type { SafetyIndexValue } from "../domain/types";
 import type { Rgba } from "../theme/palette";
 
-/** Fenetre, en secondes simulees avant l'arrivee, sur laquelle on retient l'anxiete maximale. */
-export const ARRIVAL_WINDOW_SECONDS = 10 * 60;
+/** Duree, en secondes simulees, de la fenetre glissante sur laquelle on cherche l'anxiete maximale. */
+export const ANXIETY_WINDOW_SECONDS = 10 * 60;
+/** Pas d'echantillonnage temporel de l'indice le long du trajet. */
+const SAMPLE_STEP_SECONDS = 15;
 
 const SIMULATED_POPULATION_MIN = 500;
 const SIMULATED_POPULATION_MAX = 50_000;
@@ -29,8 +32,13 @@ export interface Arrival {
   population: number;
   /** Vrai tant que la population n'est pas fournie par les donnees. */
   populationSimulated: boolean;
-  /** Indice le plus bas (anxiete maximale = 1 - indice) sur les 10 dernieres minutes ; null sans donnee. */
-  lowestSafety: SafetyIndexValue;
+  /**
+   * Indice moyen des 10 pires minutes consecutives du trajet (anxiete = 1 - indice) ;
+   * null sans donnee ou si le trajet est peu plausible.
+   */
+  worstWindowSafety: SafetyIndexValue;
+  /** Trajet de plus de 2 h : bulle neutre et creuse. */
+  implausible: boolean;
   radiusPx: number;
   color: Rgba;
 }
@@ -42,21 +50,55 @@ export interface ConstellationLink {
   time: number;
 }
 
-/** Indice le plus defavorable parmi les positions des `windowSeconds` precedant l'arrivee. */
-export function lowestSafetyBeforeArrival(
+function segmentValue(a: SafetyIndexValue, b: SafetyIndexValue): SafetyIndexValue {
+  if (a === null) return b;
+  if (b === null) return a;
+  return (a + b) / 2;
+}
+
+/**
+ * Indice moyen sur la pire fenetre glissante de `windowSeconds` du trajet (fenetre ramenee a la
+ * duree du trajet s'il est plus court). L'indice est echantillonne tous les 15 s ; chaque segment
+ * prend la moyenne des valeurs disponibles a ses extremites et les instants sans donnee sont ignores.
+ */
+export function worstWindowSafety(
   timestamps: number[],
   safety: SafetyIndexValue[],
-  endTime: number,
-  windowSeconds = ARRIVAL_WINDOW_SECONDS,
+  windowSeconds = ANXIETY_WINDOW_SECONDS,
 ): SafetyIndexValue {
-  let lowest: number | null = null;
-  timestamps.forEach((timestamp, index) => {
-    const value = safety[index] ?? null;
-    if (timestamp >= endTime - windowSeconds && value !== null) {
-      lowest = lowest === null ? value : Math.min(lowest, value);
+  const start = timestamps[0];
+  const end = timestamps[timestamps.length - 1];
+  if (start === undefined || end === undefined) return null;
+  const sampleCount = Math.max(1, Math.ceil((end - start) / SAMPLE_STEP_SECONDS));
+  const samples: SafetyIndexValue[] = [];
+  let segment = 0;
+  for (let k = 0; k < sampleCount; k += 1) {
+    const time = Math.min(end, start + (k + 0.5) * SAMPLE_STEP_SECONDS);
+    while (segment < timestamps.length - 2 && (timestamps[segment + 1] ?? end) < time) segment += 1;
+    const last = timestamps.length === 1;
+    samples.push(last ? (safety[0] ?? null) : segmentValue(safety[segment] ?? null, safety[segment + 1] ?? null));
+  }
+
+  const windowSize = Math.min(sampleCount, Math.max(1, Math.round(windowSeconds / SAMPLE_STEP_SECONDS)));
+  let sum = 0;
+  let count = 0;
+  let worst: number | null = null;
+  samples.forEach((value, index) => {
+    if (value !== null) {
+      sum += value;
+      count += 1;
+    }
+    const leaving = index >= windowSize ? samples[index - windowSize] : null;
+    if (leaving !== null && leaving !== undefined) {
+      sum -= leaving;
+      count -= 1;
+    }
+    if (index >= windowSize - 1 && count > 0) {
+      const mean = sum / count;
+      worst = worst === null ? mean : Math.min(worst, mean);
     }
   });
-  return lowest;
+  return worst;
 }
 
 function hashString(text: string): number {
@@ -70,7 +112,7 @@ function hashString(text: string): number {
   return (hash ^ (hash >>> 16)) >>> 0;
 }
 
-// TODO: remplacer par `destination.population` des que le pipeline routing la fournit.
+// Repli pour les donnees sans `destination.population` (mocks) ; le pipeline routing la fournit.
 /** Population simulee, deterministe pour un identifiant, repartie logarithmiquement. */
 export function simulatePopulation(seedText: string): number {
   const unit = hashString(seedText) / 0xffffffff;
@@ -97,7 +139,8 @@ export function buildArrivals(trips: ArrivalSource[]): Arrival[] {
     if (!position) return [];
     const populationSimulated = trip.destinationPopulation === null;
     const population = trip.destinationPopulation ?? simulatePopulation(trip.id);
-    const lowestSafety = lowestSafetyBeforeArrival(trip.timestamps, trip.safety, trip.endTime);
+    const implausible = isImplausibleTrip(trip.endTime - (trip.timestamps[0] ?? trip.endTime));
+    const worst = implausible ? null : worstWindowSafety(trip.timestamps, trip.safety);
     return [{
       id: trip.id,
       destinationName: trip.destinationName,
@@ -105,9 +148,10 @@ export function buildArrivals(trips: ArrivalSource[]): Arrival[] {
       time: trip.endTime,
       population,
       populationSimulated,
-      lowestSafety,
+      worstWindowSafety: worst,
+      implausible,
       radiusPx: populationRadiusPx(population),
-      color: safetyIndexColor(lowestSafety),
+      color: implausible ? implausibleTripColor() : safetyIndexColor(worst),
     }];
   });
   return arrivals.sort((a, b) => a.time - b.time);

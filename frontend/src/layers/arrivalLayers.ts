@@ -47,7 +47,8 @@ export interface ArrivalLayerInputs {
 /**
  * Bulles d'arrivee facon constellation : halo et lueur superposes autour d'un coeur net,
  * liens fins entre etoiles voisines, et anneau qui s'etend a l'apparition.
- * Taille = population, couleur = indicateur le plus defavorable des 10 dernieres minutes.
+ * Taille = population, couleur = indice moyen des 10 pires minutes du trajet. Les trajets peu
+ * plausibles (plus de 2 h) n'ont ni halo ni lueur : simple anneau neutre, sans remplissage.
  */
 export function buildArrivalLayers({ dataset, time, arrivedCount, flashes, nowMs }: ArrivalLayerInputs): Layer[] {
   const arrived = arrivalCache.get(dataset.arrivals, arrivedCount);
@@ -70,7 +71,7 @@ export function buildArrivalLayers({ dataset, time, arrivedCount, flashes, nowMs
       getPosition,
       radiusUnits: "pixels",
       getRadius: (arrival) => arrival.radiusPx * 2.6,
-      getFillColor: (arrival) => withAlpha(arrival.color, 26),
+      getFillColor: (arrival) => withAlpha(arrival.color, arrival.implausible ? 0 : 26),
       opacity: 0.7 + 0.3 * twinkle,
     }),
     new ScatterplotLayer<Arrival>({
@@ -79,7 +80,7 @@ export function buildArrivalLayers({ dataset, time, arrivedCount, flashes, nowMs
       getPosition,
       radiusUnits: "pixels",
       getRadius: (arrival) => arrival.radiusPx * 1.6,
-      getFillColor: (arrival) => withAlpha(arrival.color, 70),
+      getFillColor: (arrival) => withAlpha(arrival.color, arrival.implausible ? 0 : 70),
     }),
     new ScatterplotLayer<Arrival>({
       id: ARRIVAL_LAYER_IDS.core,
@@ -87,11 +88,11 @@ export function buildArrivalLayers({ dataset, time, arrivedCount, flashes, nowMs
       getPosition,
       radiusUnits: "pixels",
       getRadius: (arrival) => arrival.radiusPx,
-      getFillColor: (arrival) => withAlpha(arrival.color, 190),
+      getFillColor: (arrival) => withAlpha(arrival.color, arrival.implausible ? 0 : 190),
       stroked: true,
-      getLineColor: rgba("text", 210),
+      getLineColor: (arrival) => (arrival.implausible ? withAlpha(arrival.color, 170) : rgba("text", 210)),
       lineWidthUnits: "pixels",
-      getLineWidth: 1,
+      getLineWidth: (arrival) => (arrival.implausible ? 1.5 : 1),
       pickable: true,
       autoHighlight: true,
       highlightColor: rgba("selection", 200),

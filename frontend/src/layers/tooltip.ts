@@ -1,8 +1,9 @@
 import type { PickingInfo } from "@deck.gl/core";
 import { formatDuration, formatIndex, formatMode, formatSimulatedTime } from "../components/format";
-import { ARRIVAL_WINDOW_SECONDS, type Arrival } from "../data/arrivals";
+import { ANXIETY_WINDOW_SECONDS, type Arrival } from "../data/arrivals";
 import type { RenderDataset, RenderTrip } from "../data/prepareDataset";
 import { classifySafetyIndex } from "../domain/safetyLevels";
+import { IMPLAUSIBLE_TRIP_LABEL } from "../domain/tripPlausibility";
 import type { ScenarioSummary } from "../domain/types";
 import { palette } from "../theme/palette";
 import type { HeadBuffers } from "./headPositions";
@@ -24,11 +25,14 @@ const TOOLTIP_STYLE = {
   maxWidth: "260px",
 };
 
+const mutedLine = (text: string) => `<span style="color:${palette.textMuted}">${escapeHtml(text)}</span>`;
+
 function tripLines(dataset: RenderDataset, trip: RenderTrip): string[] {
   return [
     `<strong>${escapeHtml(trip.destinationName ?? trip.id)}</strong>`,
     `${escapeHtml(formatMode(trip.mode))} · ${formatDuration(trip.endTime - trip.startTime)}`,
     `${formatSimulatedTime(dataset.originMs, trip.startTime)} → ${formatSimulatedTime(dataset.originMs, trip.endTime)}`,
+    ...(trip.implausible ? [mutedLine(IMPLAUSIBLE_TRIP_LABEL)] : []),
   ];
 }
 
@@ -55,16 +59,22 @@ function scenarioLines(scenario: ScenarioSummary, selected: boolean): string[] {
 const populationFormatter = new Intl.NumberFormat("fr-FR");
 
 function arrivalLines(dataset: RenderDataset, arrival: Arrival): string[] {
-  const muted = (text: string) => `<span style="color:${palette.textMuted}">${escapeHtml(text)}</span>`;
-  const anxiety = arrival.lowestSafety === null ? null : 1 - arrival.lowestSafety;
-  const windowMinutes = ARRIVAL_WINDOW_SECONDS / 60;
-  return [
+  const header = [
     `<strong>${escapeHtml(arrival.destinationName ?? arrival.id)}</strong>`,
     `Arrivée ${formatSimulatedTime(dataset.originMs, arrival.time)}`,
     `Population : ${populationFormatter.format(arrival.population)} hab.${arrival.populationSimulated ? " (simulée)" : ""}`,
-    `Anxiété max sur les ${windowMinutes} dernières minutes : ${formatIndex(anxiety)}`,
-    muted(`Indicateur le plus bas : ${formatIndex(arrival.lowestSafety)} — ${classifySafetyIndex(arrival.lowestSafety).label}`),
-    muted("Indicateur, pas une mesure objective du danger."),
+  ];
+  if (arrival.implausible) {
+    return [...header, mutedLine(`${IMPLAUSIBLE_TRIP_LABEL}. Indicateur non évalué.`)];
+  }
+  const worst = arrival.worstWindowSafety;
+  const anxiety = worst === null ? null : 1 - worst;
+  const windowMinutes = ANXIETY_WINDOW_SECONDS / 60;
+  return [
+    ...header,
+    `Anxiété des ${windowMinutes} pires minutes du trajet : ${formatIndex(anxiety)}`,
+    mutedLine(`Indicateur moyen sur ces ${windowMinutes} minutes : ${formatIndex(worst)} — ${classifySafetyIndex(worst).label}`),
+    mutedLine("Indicateur, pas une mesure objective du danger."),
   ];
 }
 
@@ -96,11 +106,13 @@ export function buildTooltip(
     if (trip) {
       const raw = heads.safety[info.index] ?? Number.NaN;
       const value = Number.isNaN(raw) ? null : raw;
-      lines = [
-        ...tripLines(dataset, trip),
-        `Indicateur : ${formatIndex(value)} — ${classifySafetyIndex(value).label}`,
-        `<span style="color:${palette.textMuted}">Indicateur, pas une mesure objective du danger.</span>`,
-      ];
+      lines = trip.implausible
+        ? tripLines(dataset, trip)
+        : [
+            ...tripLines(dataset, trip),
+            `Indicateur : ${formatIndex(value)} — ${classifySafetyIndex(value).label}`,
+            mutedLine("Indicateur, pas une mesure objective du danger."),
+          ];
     }
   }
   return lines ? { html: lines.join("<br/>"), style: TOOLTIP_STYLE } : null;

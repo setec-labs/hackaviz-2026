@@ -62,8 +62,17 @@ export function Legend({ safetySimulated }: { safetySimulated: boolean }) {
           </span>
           <span>
             <span className="text-ink">Bulles d'arrivée</span> : taille proportionnelle à la population de la
-            zone (simulée tant que les données ne la fournissent pas) ; couleur selon l'anxiété maximale
-            (indicateur le plus bas) sur les 10 dernières minutes du trajet.
+            zone ; couleur selon l'anxiété des 10 pires minutes du trajet (indicateur moyen le plus bas sur
+            10 minutes consécutives).
+          </span>
+        </div>
+        <div className="mt-2 flex items-start gap-2 text-[11px] leading-snug text-ink-muted">
+          <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center" aria-hidden="true">
+            <span className="block h-3 w-3 rounded-full border-[1.5px] border-neutral" />
+          </span>
+          <span>
+            <span className="text-ink">Trajet de plus de 2 h</span> : jugé peu plausible (un taxi aurait sans
+            doute été pris). Tracé gris atténué et bulle creuse, indicateur non évalué.
           </span>
         </div>
         <p className="mt-1 text-[11px] leading-snug text-ink-muted">

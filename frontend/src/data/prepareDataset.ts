@@ -1,5 +1,6 @@
 import type { SafetyIndexValue, Trip } from "../domain/types";
 import { classifySafetyIndex, safetyIndexColor } from "../domain/safetyLevels";
+import { implausibleTripColor, isImplausibleTrip } from "../domain/tripPlausibility";
 import type { Rgba } from "../theme/palette";
 import { buildArrivals, buildConstellation, type Arrival, type ConstellationLink } from "./arrivals";
 
@@ -14,7 +15,9 @@ export interface RenderTrip {
   timestamps: number[];
   /** Indice par sommet ; null si indisponible ou si le service indice a echoue. */
   safety: SafetyIndexValue[];
-  /** Couleur par sommet derivee de l'indice. */
+  /** Trajet de plus de 2 h : affiche en couleur neutre, sans indice. */
+  implausible: boolean;
+  /** Couleur par sommet derivee de l'indice (neutre si le trajet est peu plausible). */
   colors: Rgba[];
   /** Rayon du marqueur par sommet, derive du niveau d'indicateur. */
   markerRadii: number[];
@@ -56,6 +59,7 @@ export function prepareDataset(trips: Trip[], safetyValues: SafetyIndexValue[] |
     const startTime = timestamps[0] ?? 0;
     const tripEnd = timestamps[timestamps.length - 1] ?? startTime;
     endTime = Math.max(endTime, tripEnd);
+    const implausible = isImplausibleTrip(tripEnd - startTime);
     return {
       id: trip.id,
       destinationName: trip.destinationName,
@@ -64,7 +68,8 @@ export function prepareDataset(trips: Trip[], safetyValues: SafetyIndexValue[] |
       path: trip.path,
       timestamps,
       safety,
-      colors: safety.map((value) => safetyIndexColor(value)),
+      implausible,
+      colors: safety.map((value) => (implausible ? implausibleTripColor(150) : safetyIndexColor(value))),
       markerRadii: safety.map((value) => classifySafetyIndex(value).markerRadiusPx),
       startTime,
       endTime: tripEnd,

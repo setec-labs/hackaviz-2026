@@ -1,16 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  ARRIVAL_WINDOW_SECONDS,
+  ANXIETY_WINDOW_SECONDS,
   buildArrivals,
   buildConstellation,
   countReached,
-  lowestSafetyBeforeArrival,
   populationRadiusPx,
   populationScale,
   simulatePopulation,
+  worstWindowSafety,
   type ArrivalSource,
 } from "../data/arrivals";
 import { safetyIndexColor } from "../domain/safetyLevels";
+import { rgba } from "../theme/palette";
 import { ArrivalTracker, FLASH_DURATION_MS } from "./arrivalTracker";
 
 function source(id: string, endTime: number, position: [number, number], population: number | null = null): ArrivalSource {
@@ -25,13 +26,27 @@ function source(id: string, endTime: number, position: [number, number], populat
   };
 }
 
-describe("lowestSafetyBeforeArrival", () => {
-  it("keeps the lowest value within the last 10 minutes and ignores missing values", () => {
-    const timestamps = [0, 100, 700, 900, 1200];
-    expect(ARRIVAL_WINDOW_SECONDS).toBe(600);
-    expect(lowestSafetyBeforeArrival(timestamps, [0.05, 0.1, 0.7, null, 0.4], 1200)).toBe(0.4);
-    expect(lowestSafetyBeforeArrival(timestamps, [0.9, 0.9, 0.2, null, 0.4], 1200)).toBe(0.2);
-    expect(lowestSafetyBeforeArrival(timestamps, [0.1, 0.1, null, null, null], 1200)).toBeNull();
+describe("worstWindowSafety", () => {
+  it("finds the worst 10 consecutive minutes anywhere along the trip", () => {
+    expect(ANXIETY_WINDOW_SECONDS).toBe(600);
+    // 0-30 min favorable, 30-40 min defavorable, 40-60 min favorable : la pire fenetre est au milieu.
+    const timestamps = [0, 1800, 1800, 2400, 2400, 3600];
+    expect(worstWindowSafety(timestamps, [0.9, 0.9, 0.1, 0.1, 0.9, 0.9])).toBeCloseTo(0.1);
+    // Le pire passage au debut du trajet compte autant qu'a la fin.
+    expect(worstWindowSafety([0, 600, 600, 3600], [0.2, 0.2, 0.8, 0.8])).toBeCloseTo(0.2);
+  });
+
+  it("averages within the window rather than keeping a single low point", () => {
+    // 5 minutes a 0.2 entourees de 0.8 : moyenne sur 10 minutes = 0.5.
+    const timestamps = [0, 1200, 1200, 1500, 1500, 2700];
+    expect(worstWindowSafety(timestamps, [0.8, 0.8, 0.2, 0.2, 0.8, 0.8])).toBeCloseTo(0.5);
+  });
+
+  it("uses the whole trip when shorter than the window and ignores missing values", () => {
+    expect(worstWindowSafety([0, 300], [0.4, null])).toBeCloseTo(0.4);
+    expect(worstWindowSafety([0, 300], [null, null])).toBeNull();
+    expect(worstWindowSafety([], [])).toBeNull();
+    expect(worstWindowSafety([10], [0.3])).toBe(0.3);
   });
 });
 
@@ -57,9 +72,15 @@ describe("buildArrivals", () => {
   it("uses the provided population, sorts by arrival and colours by the lowest index", () => {
     const arrivals = buildArrivals([source("late", 900, [2.5, 48.9], 1_000), source("early", 300, [2.2, 48.8])]);
     expect(arrivals.map((arrival) => arrival.id)).toEqual(["early", "late"]);
-    expect(arrivals[1]).toMatchObject({ population: 1_000, populationSimulated: false, lowestSafety: 0.6 });
+    expect(arrivals[1]).toMatchObject({ population: 1_000, populationSimulated: false, implausible: false });
+    expect(arrivals[1]?.worstWindowSafety).toBeCloseTo(0.7);
     expect(arrivals[0]?.populationSimulated).toBe(true);
-    expect(arrivals[0]?.color).toEqual(safetyIndexColor(0.6));
+    expect(arrivals[0]?.color).toEqual(safetyIndexColor(arrivals[0]?.worstWindowSafety ?? null));
+  });
+
+  it("marks trips longer than 2 hours as implausible, with a neutral colour", () => {
+    const [arrival] = buildArrivals([source("long", 2 * 3600 + 1, [2.5, 48.9], 1_000)]);
+    expect(arrival).toMatchObject({ implausible: true, worstWindowSafety: null, color: rgba("neutral") });
   });
 
   it("links each star to its nearest earlier neighbour", () => {

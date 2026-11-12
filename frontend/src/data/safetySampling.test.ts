@@ -59,6 +59,12 @@ describe("safety sampling", () => {
     ]);
   });
 
+  it("skips trips longer than 2 hours", () => {
+    const long: Trip = { ...trips[0]!, id: "long", timestampsMs: [0, 1000, 2000, 3000, 7_201_000] };
+    expect(collectPedestrianPoints([long])).toEqual([]);
+    expect(mergeSafetyValues([long], [])).toEqual([null, null, null, null, null]);
+  });
+
   it("uses the neutral placeholder elsewhere and keeps failures explicit", () => {
     const neutral = NON_PEDESTRIAN_SAFETY_VALUE;
     expect(neutral).toBe(0.5);

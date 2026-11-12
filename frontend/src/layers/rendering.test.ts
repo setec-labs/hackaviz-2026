@@ -88,9 +88,19 @@ describe("prepareDataset", () => {
       ["a", 200, [2.4, 48.9]],
       ["b", 300, [2.1, 48.1]],
     ]);
-    expect(dataset.arrivals[0]).toMatchObject({ population: 12_000, populationSimulated: false, lowestSafety: 0.3 });
-    expect(dataset.arrivals[1]).toMatchObject({ populationSimulated: true, lowestSafety: 0 });
+    expect(dataset.arrivals[0]).toMatchObject({ population: 12_000, populationSimulated: false, implausible: false });
+    expect(dataset.arrivals[0]?.worstWindowSafety).toBeCloseTo(0.475);
+    expect(dataset.arrivals[1]?.populationSimulated).toBe(true);
+    expect(dataset.arrivals[1]?.worstWindowSafety).toBeCloseTo(0.25);
     expect(dataset.constellation).toEqual([{ from: [2.4, 48.9], to: [2.1, 48.1], time: 300 }]);
+  });
+
+  it("shows trips longer than 2 hours in a neutral colour without an index", () => {
+    const long: Trip = { ...trips[0]!, id: "long", endTimeMs: base + 3 * 3600_000, timestampsMs: [base, base + 3600_000, base + 3 * 3600_000] };
+    const dataset = prepareDataset([long], [0.9, 0.9, 0.9]);
+    expect(dataset.trips[0]?.implausible).toBe(true);
+    expect(dataset.trips[0]?.colors.every((color) => color.slice(0, 3).join() === rgba("neutral").slice(0, 3).join())).toBe(true);
+    expect(dataset.arrivals[0]).toMatchObject({ implausible: true, worstWindowSafety: null, color: rgba("neutral") });
   });
 });
 
