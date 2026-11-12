@@ -59,12 +59,20 @@ observed trip is used as a minimum count of one service and marked
 `observed_trip_minimum`. This avoids dividing by zero, but is a lower-bound
 proxy rather than a complete service count.
 
-## Vehicle-size adjustment
+## Vehicle-size adjustment and score
 
 The original `estimated_validations_per_service` value is retained. The CSV
-also adds `vehicle_category`, `vehicle_size_ratio`, and
-`estimated_validations_per_service_adjusted`, calculated by multiplying the
-original estimate by the ratio:
+also includes `vehicle_category` and `vehicle_size_ratio`. First multiply the
+original estimate by this ratio (rounded to six decimal places), then convert
+it to an inverse score in `estimated_validations_per_service_adjusted`:
+
+```text
+weighted = round(original estimate × vehicle-size ratio, 6)
+score = 100 × (1 - min(max(weighted, 0), 50) / 50)
+```
+
+Thus 0 maps to 100, 25 maps to 50, and values greater than or equal to 50 map
+to 0. The output score is bounded between 0 and 100.
 
 | Category | Ratio |
 |---|---:|
@@ -76,7 +84,9 @@ original estimate by the ratio:
 | ORLYVAL | 1/3 |
 | Cable car C1 | 1 |
 
-These are user-provided relative weights, not measured vehicle capacities.
+The ratios are user-provided relative weights, not measured vehicle
+capacities. The `estimated_validations_per_service_adjusted` column now
+contains the normalized score, not the weighted raw estimate.
 
 ## Weekend sample
 

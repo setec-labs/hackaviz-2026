@@ -10,6 +10,7 @@ from ridership_surface import (
     Route,
     Trip,
     adjust_estimate_for_vehicle_size,
+    normalized_vehicle_adjusted_score,
     _validation_day_matches,
     average_daily_validations,
     collect_transit_arcs,
@@ -29,7 +30,6 @@ from ridership_surface import (
     route_network_class,
     scheduled_services_by_hour,
     vehicle_size_adjustment,
-    Route,
 )
 
 
@@ -171,6 +171,21 @@ class RidershipSurfaceTests(unittest.TestCase):
             adjust_estimate_for_vehicle_size(226.024164, 1 / 8),
             28.25302,
         )
+
+    def test_normalized_vehicle_adjusted_score_bounds_and_linear_scale(self):
+        examples = (
+            (0.0, 100.0),
+            (25.0, 50.0),
+            (50.0, 0.0),
+            (75.0, 0.0),
+            (-10.0, 100.0),
+        )
+        for value, expected in examples:
+            with self.subTest(value=value):
+                self.assertEqual(
+                    normalized_vehicle_adjusted_score(value),
+                    expected,
+                )
 
     def test_streams_journeys_from_large_json_shape(self):
         document = {

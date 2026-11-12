@@ -42,7 +42,12 @@
     "gtfs_scheduled_services": 3873
   },
   "vehicle_size_adjustment": {
-    "formula": "estimated_validations_per_service × vehicle_size_ratio",
+    "score_column": "estimated_validations_per_service_adjusted",
+    "formula": "100 × (1 - min(max(round(estimated_validations_per_service × vehicle_size_ratio, 6), 0), 50) / 50)",
+    "score_range": [
+      0,
+      100
+    ],
     "ratios_by_category": {
       "bus": 1.0,
       "cable_car": 1.0,

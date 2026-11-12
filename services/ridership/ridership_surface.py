@@ -103,6 +103,17 @@ def adjust_estimate_for_vehicle_size(estimate: float, ratio: float) -> float:
     return float(adjusted.quantize(Decimal("0.000001"), rounding=ROUND_HALF_EVEN))
 
 
+def normalized_vehicle_adjusted_score(adjusted_estimate: float) -> float:
+    bounded_estimate = min(
+        max(Decimal(str(adjusted_estimate)), Decimal("0")),
+        Decimal("50"),
+    )
+    score = Decimal("100") * (
+        Decimal("1") - bounded_estimate / Decimal("50")
+    )
+    return float(score.quantize(Decimal("0.000001"), rounding=ROUND_HALF_EVEN))
+
+
 @dataclass(frozen=True)
 class Trip:
     route_id: str
@@ -1583,6 +1594,9 @@ def main(argv: list[str] | None = None) -> None:
                 rounded_per_service,
                 vehicle_size_ratio,
             )
+            normalized_score = normalized_vehicle_adjusted_score(
+                adjusted_per_service
+            )
 
             status_counts[status] += 1
             occurrence_status_counts[status] += occurrence_count
@@ -1638,7 +1652,7 @@ def main(argv: list[str] | None = None) -> None:
                     "vehicle_category": vehicle_category,
                     "vehicle_size_ratio": vehicle_size_ratio,
                     "estimated_validations_per_service_adjusted": (
-                        adjusted_per_service
+                        normalized_score
                     ),
                     "validation_status": status,
                 }
@@ -1679,9 +1693,12 @@ def main(argv: list[str] | None = None) -> None:
             sorted(service_count_method_counts.items())
         ),
         "vehicle_size_adjustment": {
+            "score_column": "estimated_validations_per_service_adjusted",
             "formula": (
-                "estimated_validations_per_service × vehicle_size_ratio"
+                "100 × (1 - min(max(round(estimated_validations_per_service "
+                "× vehicle_size_ratio, 6), 0), 50) / 50)"
             ),
+            "score_range": [0, 100],
             "ratios_by_category": dict(sorted(vehicle_size_ratios.items())),
             "arc_counts_by_category": dict(
                 sorted(vehicle_category_counts.items())
