@@ -1,6 +1,7 @@
-import asyncio
 import math
+import os
 import unittest
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
@@ -9,12 +10,15 @@ from hackaviz_2026.models import (
     EvaluateRequest,
     IndicatorResult,
     IndicatorWeight,
+    MAX_SAFETY_INDEX_POINTS,
     Position,
+    PositionSafetyIndex,
+    SafetyIndexRequest,
     ScoreRequest,
     ScoreResponse,
 )
 from safety.main import app, get_indicator_service
-from safety.providers import LightingIndicatorProvider
+from safety.providers import IndicatorDataError, IndicatorUnavailableError
 from safety.service import IndicatorService
 
 
@@ -26,6 +30,19 @@ class FixedProvider:
         self.value = value
 
     async def evaluate(self, position: Position) -> float:
+        return self.value
+
+
+class FailingProvider(FixedProvider):
+    """Raises `error` for positions west of longitude 0, returns `value` elsewhere."""
+
+    def __init__(self, indicator_id: str, value: float, error: Exception) -> None:
+        super().__init__(indicator_id, value)
+        self.error = error
+
+    async def evaluate(self, position: Position) -> float:
+        if position.longitude < 0:
+            raise self.error
         return self.value
 
 
@@ -55,13 +72,24 @@ class ModelTests(unittest.TestCase):
         IndicatorWeight(indicator_id="test", weight=0)
 
     def test_required_fields(self) -> None:
-        for model in (EvaluateRequest, IndicatorResult, IndicatorWeight, ScoreRequest, ScoreResponse):
+        for model in (
+            EvaluateRequest, IndicatorResult, IndicatorWeight, ScoreRequest, ScoreResponse,
+            SafetyIndexRequest, PositionSafetyIndex,
+        ):
             with self.subTest(model=model), self.assertRaises(ValidationError):
                 model.model_validate({})
 
-    def test_lighting_does_not_return_a_placeholder(self) -> None:
-        with self.assertRaises(NotImplementedError):
-            asyncio.run(LightingIndicatorProvider().evaluate(Position(latitude=0, longitude=0)))
+    def test_safety_index_models(self) -> None:
+        PositionSafetyIndex(latitude=0, longitude=0, value=None)
+        PositionSafetyIndex(latitude=0, longitude=0, value=1.0)
+        for value in (-0.1, 1.1, math.nan):
+            with self.subTest(value=value), self.assertRaises(ValidationError):
+                PositionSafetyIndex(latitude=0, longitude=0, value=value)
+        point = {"latitude": 0, "longitude": 0}
+        SafetyIndexRequest.model_validate({"points": []})
+        SafetyIndexRequest.model_validate({"points": [point] * MAX_SAFETY_INDEX_POINTS})
+        with self.assertRaises(ValidationError):
+            SafetyIndexRequest.model_validate({"points": [point] * (MAX_SAFETY_INDEX_POINTS + 1)})
 
 
 class ApiTests(unittest.TestCase):
@@ -77,20 +105,86 @@ class ApiTests(unittest.TestCase):
         service = IndicatorService((FixedProvider("a", 0.2), FixedProvider("b", 0.8)))
         app.dependency_overrides[get_indicator_service] = lambda: service
 
-    def test_lighting_metadata_and_unimplemented_responses(self) -> None:
+    def use_service(self, *providers: FixedProvider) -> None:
+        service = IndicatorService(providers)
+        app.dependency_overrides[get_indicator_service] = lambda: service
+
+    def test_lighting_metadata(self) -> None:
         response = self.client.get("/indicators")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()[0]["id"], "lighting")
+        self.assertEqual([item["id"] for item in response.json()], ["lighting"])
         self.assertTrue(response.json()[0]["name"])
         self.assertTrue(response.json()[0]["description"])
+
+    def test_unimplemented_indicator_never_returns_a_placeholder(self) -> None:
+        self.use_service(FailingProvider("pending", 0.5, NotImplementedError()))
+        west = {"latitude": 48.0, "longitude": -1.0}
         for path, body in [
-            ("/evaluate", {"position": self.position}),
-            ("/score", {"position": self.position, "weights": [{"indicator_id": "lighting", "weight": 1}]}),
+            ("/evaluate", {"position": west}),
+            ("/score", {"position": west, "weights": [{"indicator_id": "pending", "weight": 1}]}),
+            ("/safety-index", {"points": [self.position, west]}),
         ]:
             with self.subTest(path=path):
                 response = self.client.post(path, json=body)
                 self.assertEqual(response.status_code, 501)
-                self.assertIn("lighting", response.json()["detail"])
+                self.assertIn("pending", response.json()["detail"])
+
+    def test_unavailable_data_is_reported_not_invented(self) -> None:
+        self.use_service(FixedProvider("a", 0.4), FailingProvider("b", 0.8, IndicatorUnavailableError("no data")))
+        west = {"latitude": 48.0, "longitude": -1.0}
+        for path, body in [
+            ("/evaluate", {"position": west}),
+            ("/score", {"position": west, "weights": [{"indicator_id": "b", "weight": 1}]}),
+        ]:
+            with self.subTest(path=path):
+                response = self.client.post(path, json=body)
+                self.assertEqual(response.status_code, 404)
+                self.assertEqual(response.json()["detail"], "no data")
+        response = self.client.post("/safety-index", json={"points": [self.position, west]})
+        self.assertEqual(response.status_code, 200)
+        first, second = response.json()["indices"]
+        self.assertEqual((first["latitude"], first["longitude"]), (self.position["latitude"], self.position["longitude"]))
+        self.assertAlmostEqual(first["value"], 0.6)
+        self.assertEqual(second, {**west, "value": None})
+
+    def test_safety_index_keeps_request_order(self) -> None:
+        self.use_fixed_providers()
+        points = [{"latitude": 48.0 + i / 10, "longitude": 2.0 + i / 10} for i in range(4)]
+        response = self.client.post("/safety-index", json={"points": points})
+        self.assertEqual(response.status_code, 200)
+        indices = response.json()["indices"]
+        self.assertEqual([{"latitude": i["latitude"], "longitude": i["longitude"]} for i in indices], points)
+        for item in indices:
+            self.assertAlmostEqual(item["value"], 0.5)
+        self.assertEqual(self.client.post("/safety-index", json={"points": []}).json(), {"indices": []})
+
+    def test_source_data_errors_return_503(self) -> None:
+        self.use_service(FailingProvider("broken", 0.5, IndicatorDataError("raster unreadable")))
+        west = {"latitude": 48.0, "longitude": -1.0}
+        for path, body in [
+            ("/evaluate", {"position": west}),
+            ("/safety-index", {"points": [west]}),
+        ]:
+            with self.subTest(path=path):
+                response = self.client.post(path, json=body)
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.json()["detail"], "raster unreadable")
+
+    def test_empty_raster_setting_is_rejected(self) -> None:
+        get_indicator_service.cache_clear()
+        self.addCleanup(get_indicator_service.cache_clear)
+        with patch.dict(os.environ, {"SAFETY_LIGHTING_RASTER": " "}):
+            response = self.client.get("/indicators")
+        self.assertEqual(response.status_code, 503)
+
+    def test_cors_allows_the_frontend_dev_server(self) -> None:
+        response = self.client.options("/safety-index", headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Content-Type",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["access-control-allow-origin"], "http://localhost:5173")
 
     def test_evaluate_and_weighted_score(self) -> None:
         self.use_fixed_providers()
@@ -134,6 +228,9 @@ class ApiTests(unittest.TestCase):
                 {"indicator_id": "a", "weight": 1}, {"indicator_id": "a", "weight": 2},
             ]}, 422),
             ("/score", {"position": self.position, "weights": [{"indicator_id": "unknown", "weight": 1}]}, 400),
+            ("/safety-index", {}, 422),
+            ("/safety-index", {"points": [{"latitude": 0, "longitude": 200}]}, 422),
+            ("/safety-index", {"points": [self.position] * (MAX_SAFETY_INDEX_POINTS + 1)}, 422),
         ]
         for path, body, status in cases:
             with self.subTest(body=body):
@@ -163,7 +260,11 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(schemas["Position"]["properties"]["latitude"]["minimum"], -90)
         self.assertEqual(schemas["IndicatorResult"]["properties"]["value"]["maximum"], 1)
         self.assertEqual(schemas["ScoreResponse"]["properties"]["score"]["minimum"], 0)
-        for path, method in [("/indicators", "get"), ("/evaluate", "post"), ("/score", "post")]:
+        self.assertIn("null", str(schemas["PositionSafetyIndex"]["properties"]["value"]))
+        self.assertEqual(schemas["SafetyIndexRequest"]["properties"]["points"]["maxItems"], MAX_SAFETY_INDEX_POINTS)
+        for path, method in [
+            ("/indicators", "get"), ("/evaluate", "post"), ("/score", "post"), ("/safety-index", "post"),
+        ]:
             self.assertIn("schema", schema["paths"][path][method]["responses"]["200"]["content"]["application/json"])
 
 

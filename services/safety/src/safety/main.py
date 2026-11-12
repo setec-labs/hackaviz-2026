@@ -1,7 +1,11 @@
+import os
+from functools import lru_cache
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from hackaviz_2026.api import ErrorResponse, ValidationErrorResponse, ValidationIssue
@@ -9,21 +13,51 @@ from hackaviz_2026.models import (
     EvaluateRequest,
     EvaluateResponse,
     Indicator,
+    SafetyIndexRequest,
+    SafetyIndexResponse,
     ScoreRequest,
     ScoreResponse,
 )
-from safety.providers import LightingIndicatorProvider
+from safety.lighting import DEFAULT_LIGHTING_RASTER, LightingIndicatorProvider
+from safety.providers import IndicatorDataError, IndicatorUnavailableError
 from safety.service import IndicatorNotImplementedError, IndicatorService, UnknownIndicatorError
+
+
+DEFAULT_CORS_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")
+
+
+def _read_path_setting(name: str, default: Path) -> Path:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    if not value.strip():
+        raise IndicatorDataError(f"{name} must not be empty")
+    return Path(value)
+
+
+def _cors_origins() -> list[str]:
+    value = os.environ.get("SAFETY_CORS_ORIGINS")
+    if value is None:
+        return list(DEFAULT_CORS_ORIGINS)
+    return [origin.strip() for origin in value.split(",") if origin.strip()]
 
 
 app = FastAPI(
     title="Safety indicators",
     responses={422: {"model": ValidationErrorResponse}},
 )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins(),
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 
+@lru_cache(maxsize=1)
 def get_indicator_service() -> IndicatorService:
-    return IndicatorService((LightingIndicatorProvider(),))
+    raster_path = _read_path_setting("SAFETY_LIGHTING_RASTER", DEFAULT_LIGHTING_RASTER)
+    return IndicatorService((LightingIndicatorProvider(raster_path),))
 
 
 Service = Annotated[IndicatorService, Depends(get_indicator_service)]
@@ -53,6 +87,18 @@ async def unknown_indicator_handler(request: Request, exc: UnknownIndicatorError
     return JSONResponse(status_code=400, content=ErrorResponse(detail=str(exc)).model_dump())
 
 
+@app.exception_handler(IndicatorUnavailableError)
+async def indicator_unavailable_handler(
+    request: Request, exc: IndicatorUnavailableError
+) -> JSONResponse:
+    return JSONResponse(status_code=404, content=ErrorResponse(detail=str(exc)).model_dump())
+
+
+@app.exception_handler(IndicatorDataError)
+async def indicator_data_handler(request: Request, exc: IndicatorDataError) -> JSONResponse:
+    return JSONResponse(status_code=503, content=ErrorResponse(detail=str(exc)).model_dump())
+
+
 @app.get("/indicators", response_model=list[Indicator])
 async def list_indicators(service: Service) -> list[Indicator]:
     return service.list_indicators()
@@ -61,7 +107,11 @@ async def list_indicators(service: Service) -> list[Indicator]:
 @app.post(
     "/evaluate",
     response_model=EvaluateResponse,
-    responses={501: {"model": ErrorResponse}},
+    responses={
+        404: {"model": ErrorResponse},
+        501: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
+    },
 )
 async def evaluate(request: EvaluateRequest, service: Service) -> EvaluateResponse:
     return await service.evaluate(request.position)
@@ -70,7 +120,21 @@ async def evaluate(request: EvaluateRequest, service: Service) -> EvaluateRespon
 @app.post(
     "/score",
     response_model=ScoreResponse,
-    responses={400: {"model": ErrorResponse}, 501: {"model": ErrorResponse}},
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        501: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
+    },
 )
 async def score(request: ScoreRequest, service: Service) -> ScoreResponse:
     return await service.score(request)
+
+
+@app.post(
+    "/safety-index",
+    response_model=SafetyIndexResponse,
+    responses={501: {"model": ErrorResponse}, 503: {"model": ErrorResponse}},
+)
+async def safety_index(request: SafetyIndexRequest, service: Service) -> SafetyIndexResponse:
+    return await service.safety_index(request.points)

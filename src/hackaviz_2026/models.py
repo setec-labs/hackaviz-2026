@@ -54,3 +54,21 @@ class ScoreResponse(BaseModel):
     position: Position
     score: NormalizedScore
     indicators: list[IndicatorResult]
+
+
+# Mirrors the frontend batch contract (`frontend/src/api/contracts.ts`), which sends at most this many points.
+MAX_SAFETY_INDEX_POINTS = 5000
+
+
+class SafetyIndexRequest(BaseModel):
+    points: list[Position] = Field(max_length=MAX_SAFETY_INDEX_POINTS)
+
+
+class PositionSafetyIndex(Position):
+    value: NormalizedScore | None = Field(
+        description="Normalized index (1 is most favorable), or null when no data covers the position."
+    )
+
+
+class SafetyIndexResponse(BaseModel):
+    indices: list[PositionSafetyIndex]

@@ -5,11 +5,13 @@ from hackaviz_2026.models import (
     Indicator,
     IndicatorResult,
     Position,
+    PositionSafetyIndex,
     ScoreRequest,
     ScoreResponse,
+    SafetyIndexResponse,
 )
 
-from safety.providers import IndicatorProvider
+from safety.providers import IndicatorProvider, IndicatorUnavailableError
 
 
 class UnknownIndicatorError(ValueError):
@@ -22,6 +24,8 @@ class IndicatorNotImplementedError(RuntimeError):
 
 class IndicatorService:
     def __init__(self, providers: tuple[IndicatorProvider, ...]) -> None:
+        if not providers:
+            raise ValueError("At least one indicator provider is required")
         self._providers = {provider.id: provider for provider in providers}
         if len(self._providers) != len(providers):
             raise ValueError("Indicator provider IDs must be unique")
@@ -69,3 +73,21 @@ class IndicatorService:
             for result, weight in zip(indicators, scaled_weights, strict=True)
         ) / total_weight
         return ScoreResponse(position=request.position, score=score, indicators=indicators)
+
+    async def safety_index(self, positions: list[Position]) -> SafetyIndexResponse:
+        """Equal-weight mean of every indicator; null where any indicator has no data."""
+        providers = list(self._providers.values())
+        indices = []
+        for position in positions:
+            try:
+                results = await self._evaluate(position, providers)
+            except IndicatorUnavailableError:
+                value = None
+            else:
+                value = fsum(result.value for result in results) / len(results)
+            indices.append(PositionSafetyIndex(
+                latitude=position.latitude,
+                longitude=position.longitude,
+                value=value,
+            ))
+        return SafetyIndexResponse(indices=indices)
