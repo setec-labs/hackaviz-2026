@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Literal, Self
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, model_validator
@@ -5,18 +6,19 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstrai
 from hackaviz_2026.models import NormalizedScore, Position
 
 
-ScenarioId = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9_-]*$", max_length=128)]
+ScenarioId = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$", max_length=128)]
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 Longitude = Annotated[float, Field(ge=-180.0, le=180.0, allow_inf_nan=False)]
 Latitude = Annotated[float, Field(ge=-90.0, le=90.0, allow_inf_nan=False)]
 Coordinate = tuple[Longitude, Latitude]
 OffsetSeconds = Annotated[float, Field(ge=0.0, allow_inf_nan=False)]
 PointIndex = Annotated[int, Field(ge=0, strict=True)]
-JourneyMode = Literal["walk_access", "walk_egress", "walk_transfer", "wait", "transit"]
+JourneyMode = Literal["walk_access", "walk_egress", "walk_transfer", "walk_direct", "wait", "transit"]
 
 
 class Destination(Position):
     name: NonEmptyString
+    population: int | None = Field(default=None, ge=0, strict=True)
 
 
 class JourneyLeg(BaseModel):
@@ -74,37 +76,71 @@ class Journey(BaseModel):
         return self
 
 
+def _check_scenario_journeys(journeys: list[Journey], departure_time: datetime) -> None:
+    journey_ids = [journey.journey_id for journey in journeys]
+    if len(set(journey_ids)) != len(journey_ids):
+        raise ValueError("Journey IDs must be unique within a scenario")
+    if any(journey.start_time < departure_time for journey in journeys):
+        raise ValueError("Journeys must not start before the scenario departure_time")
+
+
+class ScenarioDocument(BaseModel):
+    """Content of a `journeys.json` file produced by the routing pipeline (one file per scenario)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: NonEmptyString | None = None
+    description: NonEmptyString | None = None
+    origin: Position
+    departure_time: AwareDatetime
+    journeys: list[Journey] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_journeys(self) -> Self:
+        _check_scenario_journeys(self.journeys, self.departure_time)
+        return self
+
+
 class ScenarioSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: ScenarioId
     name: NonEmptyString
     description: NonEmptyString
-    type: NonEmptyString
+    metadata_generated: bool = Field(
+        description="True when name and description were derived from the data because the file has none."
+    )
+    origin: Position
+    departure_time: AwareDatetime
+    journey_count: int = Field(ge=1, strict=True)
 
 
 class Scenario(ScenarioSummary):
-    origin: Position
-    departure_time: AwareDatetime
-    journey: Journey
+    journeys: list[Journey] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_departure(self) -> Self:
-        if self.journey.start_time < self.departure_time:
-            raise ValueError("Journey must not start before the scenario departure_time")
+    def validate_journey_count(self) -> Self:
+        if self.journey_count != len(self.journeys):
+            raise ValueError("journey_count must match the number of journeys")
+        _check_scenario_journeys(self.journeys, self.departure_time)
         return self
 
 
 class ReportRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    scenario: Scenario
-
-
-class ReportResponse(BaseModel):
     scenario_id: ScenarioId
-    position: Position
+
+
+class JourneyReport(BaseModel):
+    journey_id: NonEmptyString
+    position: Position = Field(description="Final point of the journey.")
     person_count: int = Field(ge=0, strict=True)
     anxiety_index: NormalizedScore = Field(
         description="Normalized favorability score: 0 is least favorable, 1 most favorable."
     )
+
+
+class ReportResponse(BaseModel):
+    scenario_id: ScenarioId
+    journeys: list[JourneyReport]

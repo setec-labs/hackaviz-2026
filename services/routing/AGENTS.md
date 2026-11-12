@@ -24,26 +24,42 @@ fonctions `def`, executees hors de la boucle evenementielle par FastAPI.
 
 ## Ajouter ou modifier un scenario
 
-1. Un scenario contient exactement **un trajet**, pas une liste de trajets.
-   Fournir `id`, `name`, `description`, `type`, `origin`, `departure_time`, `journey`.
-2. Rediger le nom et la description en francais. Le type est une chaine non vide
-   extensible (`hospital`, `concert_hall`, etc.), pas une enumeration fermee.
-3. Ecrire un fichier `<id>.json` dans `data/routing/scenarios/`, ou dans le dossier
-   configure par `ROUTING_SCENARIOS_DIR`. Le chemin par defaut est relatif au
-   repertoire de lancement : executer les commandes depuis la racine.
-4. Le champ `id` doit correspondre au nom du fichier et respecter `ScenarioId`.
-   Garder cette validation sur toute route utilisant un identifiant de fichier.
-5. Valider le fichier avec `Scenario.model_validate_json` avant utilisation.
-   Ne pas contourner les validations avec `model_construct`.
+1. Un scenario = **un fichier `journeys.json`** produit par le pipeline
+   (`transit_accessibility.py` / `run_scenarios.py`) : une origine, une heure de
+   depart et **plusieurs trajets** (`journeys`). Ne pas modifier le pipeline
+   depuis l'API : c'est la responsabilite de son auteur.
+2. Emplacement : `data/output/scenarios/<scenario_id>/journeys.json` (versionne),
+   ou le dossier configure par `ROUTING_SCENARIOS_DIR`. Le chemin par defaut est
+   relatif au repertoire de lancement : executer les commandes depuis la racine.
+3. L'identifiant est le **nom du dossier** et doit respecter `ScenarioId`
+   (majuscules autorisees, ex. `AccorHotel-Arena`). Garder cette validation sur
+   toute route utilisant un identifiant de fichier.
+4. Le fichier est valide par `ScenarioDocument.model_validate_json` (trajets non
+   vides, `journey_id` uniques, aucun trajet avant `departure_time`). Ne pas
+   contourner les validations avec `model_construct`.
+5. `name` et `description` sont optionnels dans le fichier tant que le pipeline
+   ne les exporte pas. Le repli (`describe_scenario`) derive le nom de l'identifiant
+   et une description factuelle (depart, nombre de trajets et de destinations),
+   met `metadata_generated=True` et journalise un avertissement. Ne jamais
+   inventer de contenu (lieu, public, motif) absent des donnees.
+6. Le modele `Journey` de l'API est plus strict que celui du pipeline
+   (`extra="forbid"`, arrets non vides) : si une nouvelle sortie est rejetee,
+   corriger la donnee ou faire evoluer le contrat explicitement, jamais en
+   ignorant le fichier.
 
-Le choix est **un JSON par scenario**, pas JSONL : chaque scenario est independant.
-Les donnees reelles restent dans le dossier racine `data/`, ignore par Git.
-Ne pas committer de donnees personnelles ni le fichier telecharge de l'utilisateur.
+Le repository garde en cache le scenario lu, invalide par `(mtime_ns, size)` :
+ne pas ajouter d'autre cache sans invalidation. `get_routing_service` est
+memoise par `lru_cache` : appeler `get_routing_service.cache_clear()` dans les
+tests qui modifient `ROUTING_SCENARIOS_DIR`.
+
+L'ancien format `data/routing/scenarios/<id>.json` (un trajet par scenario) est
+abandonne.
 
 Un dossier existant mais vide est un catalogue vide. Un dossier manquant, une
-configuration vide ou un fichier invalide est une erreur `503`, jamais un
-catalogue vide ou partiel. Les erreurs de lecture sont journalisees avec le
-chemin du fichier, sans exposer son contenu dans la reponse HTTP.
+configuration vide, un nom de dossier invalide ou un fichier invalide est une
+erreur `503`, jamais un catalogue vide ou partiel. Les erreurs de lecture sont
+journalisees avec le chemin du fichier, sans exposer son contenu dans la
+reponse HTTP.
 
 ## Invariants des trajets
 
@@ -62,9 +78,11 @@ chemin du fichier, sans exposer son contenu dans la reponse HTTP.
 
 ## Implementer le report
 
-`POST /report` recoit un scenario complet valide, independamment du catalogue.
-Un scenario n'ayant qu'un trajet, le report concerne une seule destination.
-La position reportee est la derniere coordonnee du trajet, pas l'origine.
+`POST /report` recoit `{"scenario_id": ...}` et lit le scenario dans le catalogue
+(`404` s'il est absent). Le report contient un `JourneyReport` **par trajet** ;
+la position reportee est la derniere coordonnee du trajet, pas l'origine.
+`destination.population` (optionnelle, exportee par le pipeline) est une piste
+pour les effectifs, mais son usage reste a valider.
 
 `UnimplementedReportProvider` leve actuellement `NotImplementedError`, traduit
 en `501` par le service et la couche HTTP. Ne retourner aucune metrique fictive,
@@ -75,8 +93,8 @@ Avant de remplacer ce provider :
 1. Faire preciser les sources des effectifs, leur reference temporelle et la
    definition de la presence au point final (perimetre, fenetre temporelle).
 2. Faire definir et documenter la methode de calcul du score.
-3. Respecter `ReportProvider` et retourner un `ReportResponse` valide :
-   `person_count` entier >= 0, `anxiety_index` fini dans [0, 1].
+3. Respecter `ReportProvider` et retourner un `ReportResponse` valide : pour
+   chaque `JourneyReport`, `person_count` entier >= 0, `anxiety_index` fini dans [0, 1].
 4. Malgre son nom, `anxiety_index` suit la convention commune :
    **0 = le moins favorable, 1 = le plus favorable**. Une mesure brute d'anxiete
    orientee dans l'autre sens doit etre transformee avant exposition.
@@ -96,9 +114,9 @@ uv run --package routing uvicorn routing.main:app --port 8001 --reload
 
 Les tests utilisent des scenarios synthetiques et des dossiers temporaires :
 ne pas les faire dependre du dossier local `data/` ou d'un fichier Downloads.
-Seule exception : `tests/test_local_data.py` valide le catalogue local
-`data/routing/scenarios/` lorsqu'il existe et est ignore sinon. Le relancer
-apres tout ajout ou modification de scenario.
+Seule exception : `tests/test_local_data.py` valide les sorties du pipeline dans
+`data/output/scenarios/` lorsqu'elles existent et est ignore sinon. Le relancer
+apres toute nouvelle execution du pipeline.
 Tester les cas nominaux, donnees absentes/invalides, bornes, chronologie,
 geometrie, erreurs de stockage et report non implemente.
 Surcharger `get_routing_service` via `app.dependency_overrides` pour les tests API.
@@ -108,5 +126,8 @@ Les modeles d'erreurs HTTP sont partages dans
 executer aussi les tests safety.
 Verifier le demarrage reel du service apres une modification de code.
 
-Le contrat frontend `GET /trips` reste provisoire et n'est pas implemente ici.
-Ne pas pretendre que le mode API du frontend est deja compatible avec le catalogue.
+Le frontend consomme `GET /scenarios` (points de depart cliquables, infobulle
+nom/description) et `GET /scenarios/{id}` (trajets). Toute modification de
+`ScenarioSummary`, `Scenario` ou `Journey` doit etre repercutee dans
+`frontend/src/api/` (types, validation, conversion) et ses tests.
+Le CORS est configure par `ROUTING_CORS_ORIGINS`.

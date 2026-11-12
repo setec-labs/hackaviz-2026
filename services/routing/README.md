@@ -59,44 +59,53 @@ interactive est disponible sur `http://localhost:8001/docs`.
 
 ## Scénarios et stockage
 
-Un scénario correspond à **un seul trajet**, avec un identifiant stable, un nom,
-une description en français et un type extensible (`hospital`, `concert_hall`,
-`train_station`, etc.). Le type n'est pas limité à une liste codée en dur.
+Un scénario correspond à **un fichier `journeys.json` produit par le pipeline**
+(voir plus bas) : une origine, une heure de départ et **plusieurs trajets**
+vers différentes destinations.
 
-Le format retenu est **un fichier JSON par scénario**, plutôt que JSONL :
-il permet de modifier et valider un scénario indépendamment, et reprend la
-structure des trajets de l'exemple `journeys.json`.
-
-Par défaut, les fichiers sont lus dans `data/routing/scenarios/`, relativement
-au répertoire de lancement. Ce dossier de données n'est pas versionné.
-Un autre emplacement peut être défini avant le lancement :
+L'API lit directement les sorties du pipeline, versionnées dans
+`data/output/scenarios/<scenario_id>/journeys.json`. L'identifiant du scénario
+est le **nom du dossier** (par exemple `AccorHotel-Arena`). Un autre
+emplacement peut être défini avant le lancement :
 
 ```powershell
 $env:ROUTING_SCENARIOS_DIR = "C:\chemin\vers\scenarios"
 ```
 
-Le nom du fichier doit correspondre à son champ `id` : par exemple
-`tour-eiffel.json` contient `"id": "tour-eiffel"`. Les identifiants utilisent
-des lettres minuscules ASCII, des chiffres, des tirets ou des underscores,
-commencent par une lettre ou un chiffre et font au plus 128 caractères.
-Le catalogue est trié par nom de fichier et ne lit que les fichiers `.json`
-directement présents dans le dossier, sans parcourir les sous-dossiers.
-Les modifications sont visibles à la requête suivante, sans cache.
+Les identifiants utilisent des lettres ASCII (majuscules autorisées), des
+chiffres, des tirets ou des underscores, commencent par une lettre ou un
+chiffre et font au plus 128 caractères. Un dossier sans `journeys.json` est
+ignoré ; un dossier au nom invalide est une erreur. Le catalogue est trié par
+nom de dossier. Chaque fichier n'est relu que si sa date de modification ou sa
+taille change (cache en mémoire).
 
 Les contrats Pydantic sont définis dans
 [`src/hackaviz_2026/routing.py`](../../src/hackaviz_2026/routing.py) :
 
-- `ScenarioSummary` : `id`, `name`, `description`, `type` ;
-- `Scenario` : ces métadonnées, `origin`, `departure_time` et un unique `journey` ;
-- `Journey` : `journey_id`, `destination`, `start_time`, `end_time`, `legs`,
-  `coordinates`, `offsets_s` ;
-- `JourneyLeg` : mode, horaires, arrêts, éventuel identifiant GTFS et `point_range`.
+- `ScenarioDocument` : contenu d'un `journeys.json` (`name` et `description`
+  optionnels, `origin`, `departure_time`, `journeys`) ;
+- `ScenarioSummary` : `id`, `name`, `description`, `metadata_generated`,
+  `origin`, `departure_time`, `journey_count` ;
+- `Scenario` : ces métadonnées et la liste complète `journeys` ;
+- `Journey` : `journey_id` (unique dans le scénario), `destination` (avec
+  `population` optionnelle), `start_time`, `end_time`, `legs`, `coordinates`,
+  `offsets_s` ;
+- `JourneyLeg` : mode (`walk_access`, `walk_egress`, `walk_transfer`,
+  `walk_direct`, `wait`, `transit`), horaires, arrêts, éventuel identifiant
+  GTFS et `point_range`.
 
-Le fichier fourni `journeys.json` contient plusieurs trajets sous `journeys` :
-il faut donc créer un scénario par élément de cette liste, en conservant
-`origin` et `departure_time` et en ajoutant les métadonnées du scénario.
-Les noms et descriptions sont rédigés en français par l'auteur des données ;
-aucune détection automatique de langue n'est effectuée.
+### Métadonnées générées (développement)
+
+Les sorties actuelles du pipeline n'ont pas encore de `name` ni de
+`description` à la racine. En leur absence, l'API dérive des métadonnées
+**uniquement à partir des données** et le signale :
+
+- `name` : identifiant du dossier, tirets et underscores remplacés par des espaces ;
+- `description` : date et heure de départ, nombre de trajets et de destinations ;
+- `metadata_generated: true` et un avertissement dans les logs.
+
+Dès que le pipeline exporte ces champs, ils sont utilisés tels quels et
+`metadata_generated` passe à `false`.
 
 ### Géométrie et temps
 
@@ -116,22 +125,23 @@ aucune détection automatique de langue n'est effectuée.
 
 ### `GET /scenarios`
 
-Retourne `list[ScenarioSummary]`, sans charger les géométries dans la réponse.
+Retourne `list[ScenarioSummary]` (origine et métadonnées, sans géométries).
 Les fichiers complets sont néanmoins validés avant d'être listés.
 
 ### `GET /scenarios/{scenario_id}`
 
-Retourne un `Scenario` complet, comprenant son trajet et sa géométrie.
+Retourne un `Scenario` complet, avec tous ses trajets et leurs géométries
+(environ 2 à 3 Mo par scénario).
 
 ### `POST /report`
 
-Reçoit un `ReportRequest` sous la forme `{"scenario": <scénario complet>}`.
-Le scénario est validé indépendamment du catalogue : il n'a pas besoin d'être
-déjà enregistré dans un fichier.
+Reçoit un `ReportRequest` sous la forme `{"scenario_id": "<id>"}` : le
+scénario est lu dans le catalogue (`404` s'il est absent).
 
-Le futur `ReportResponse` contiendra :
+Le futur `ReportResponse` contiendra `scenario_id` et, pour chaque trajet,
+un `JourneyReport` :
 
-- `scenario_id` ;
+- `journey_id` ;
 - `position` : le point final réel, soit la dernière coordonnée du trajet ;
 - `person_count` : un entier positif ou nul ;
 - `anxiety_index` : un score normalisé dans `[0, 1]`.
@@ -150,7 +160,7 @@ de calcul du score restent à définir avant d'implémenter `ReportProvider`.
 - `422` : requête invalide ou identifiant de chemin invalide ;
 - `404` : scénario demandé absent d'un dossier disponible ;
 - `503` : dossier absent/inaccessible, fichier illisible ou invalide,
-  configuration vide ou identifiant différent du nom du fichier ;
+  configuration vide ou nom de dossier qui n'est pas un identifiant valide ;
 - `501` : report non implémenté.
 
 Un dossier existant et vide retourne `[]`. Un dossier absent ou un fichier
@@ -163,15 +173,16 @@ uv run --package routing python -m unittest discover -s services\routing\tests -
 ```
 
 Les tests utilisent des scénarios synthétiques, isolés dans des dossiers
-temporaires, et ne nécessitent pas le fichier téléchargé. Seul
-`test_local_data.py` valide les scénarios présents dans
-`data/routing/scenarios/` ; il est ignoré si ce dossier n'existe pas.
+temporaires. Seul `test_local_data.py` valide les sorties réelles du pipeline
+présentes dans `data/output/scenarios/` ; il est ignoré si ce dossier n'existe pas.
 
 ## Intégration frontend
 
-Le frontend attend encore le contrat provisoire `GET /trips`. Cette route
-n'est pas fournie par cette API de scénarios : l'adaptation du client frontend
-reste à réaliser. Le mode mocks reste inchangé.
+Le frontend (mode API) appelle `GET /scenarios` pour afficher les points de
+départ cliquables, puis `GET /scenarios/{scenario_id}` pour charger les trajets
+du scénario sélectionné. Les origines CORS autorisées sont configurables via
+`ROUTING_CORS_ORIGINS` (par défaut `http://localhost:5173` et
+`http://127.0.0.1:5173`).
 
 ## Calculer l'accessibilité en transports en commun
 

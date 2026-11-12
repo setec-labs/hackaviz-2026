@@ -19,7 +19,8 @@ class RoutingService:
     def get_scenario(self, scenario_id: str) -> Scenario:
         return self._repository.get_scenario(scenario_id)
 
-    async def report(self, scenario: Scenario) -> ReportResponse:
+    async def report(self, scenario_id: str) -> ReportResponse:
+        scenario = self._repository.get_scenario(scenario_id)
         try:
             return await self._report_provider.report(scenario)
         except NotImplementedError as exc:

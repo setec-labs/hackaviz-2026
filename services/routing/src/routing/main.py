@@ -1,9 +1,11 @@
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from hackaviz_2026.api import ErrorResponse, ValidationErrorResponse, ValidationIssue
@@ -18,9 +20,22 @@ app = FastAPI(
     responses={422: {"model": ValidationErrorResponse}},
 )
 
+DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        origin.strip()
+        for origin in os.environ.get("ROUTING_CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
+        if origin.strip()
+    ],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
+
+@lru_cache(maxsize=1)
 def get_routing_service() -> RoutingService:
-    default_directory = Path("data") / "routing" / "scenarios"
+    default_directory = Path("data") / "output" / "scenarios"
     configured_directory = os.environ.get("ROUTING_SCENARIOS_DIR")
     if configured_directory is not None and not configured_directory.strip():
         raise ScenarioDataError("ROUTING_SCENARIOS_DIR must not be empty")
@@ -81,7 +96,7 @@ def get_scenario(scenario_id: ScenarioId, service: Service) -> Scenario:
 @app.post(
     "/report",
     response_model=ReportResponse,
-    responses={501: {"model": ErrorResponse}},
+    responses={404: {"model": ErrorResponse}, 501: {"model": ErrorResponse}, 503: {"model": ErrorResponse}},
 )
 async def report(request: ReportRequest, service: Service) -> ReportResponse:
-    return await service.report(request.scenario)
+    return await service.report(request.scenario_id)
