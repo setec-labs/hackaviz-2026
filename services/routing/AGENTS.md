@@ -47,8 +47,13 @@ fonctions `def`, executees hors de la boucle evenementielle par FastAPI.
    corriger la donnee ou faire evoluer le contrat explicitement, jamais en
    ignorant le fichier.
 
-Le repository garde en cache le scenario lu, invalide par `(mtime_ns, size)` :
-ne pas ajouter d'autre cache sans invalidation. `get_routing_service` est
+Le repository garde en cache, invalides par `(mtime_ns, size)`, les resumes de
+tous les scenarios et les 2 derniers scenarios complets (LRU, ~150 Mo de JSON
+chacun) : ne pas ajouter d'autre cache sans invalidation. `list_scenarios` lit
+seulement l'en-tete (`ScenarioDocumentHeader`, JSON partiel sur 64 Ko) et compte
+les `journey_id` ; il retombe sur une lecture complete si l'en-tete est
+incomplet ou si les metadonnees doivent etre generees. Ne pas revenir a une
+validation complete pour la liste (~30 s sur les donnees reelles). `get_routing_service` est
 memoise par `lru_cache` : appeler `get_routing_service.cache_clear()` dans les
 tests qui modifient `ROUTING_SCENARIOS_DIR`.
 

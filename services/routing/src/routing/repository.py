@@ -1,16 +1,29 @@
 import logging
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 
 from pydantic import TypeAdapter, ValidationError
+from pydantic_core import from_json
 
-from hackaviz_2026.routing import Scenario, ScenarioDocument, ScenarioId, ScenarioSummary
+from hackaviz_2026.routing import (
+    Scenario,
+    ScenarioDocument,
+    ScenarioDocumentHeader,
+    ScenarioId,
+    ScenarioSummary,
+)
 
 
 logger = logging.getLogger(__name__)
 
 JOURNEYS_FILENAME = "journeys.json"
 _scenario_id_adapter: TypeAdapter[str] = TypeAdapter(ScenarioId)
+# Pipeline files weigh ~150 MB: the listing only parses the root fields written before `journeys`.
+_HEADER_PREFIX_BYTES = 64 * 1024
+_JOURNEY_ID_KEY = b'"journey_id"'
+# Each validated scenario holds millions of points in memory: keep only the most recent ones.
+_SCENARIO_CACHE_SIZE = 2
 
 
 class ScenarioNotFoundError(LookupError):
@@ -25,6 +38,12 @@ class ScenarioDataError(RuntimeError):
 class _CachedScenario:
     signature: tuple[int, int]
     scenario: Scenario
+
+
+@dataclass(frozen=True)
+class _CachedSummary:
+    signature: tuple[int, int]
+    summary: ScenarioSummary
 
 
 def describe_scenario(scenario_id: str, document: ScenarioDocument) -> tuple[str, str]:
@@ -46,14 +65,15 @@ class ScenarioRepository:
 
     def __init__(self, directory: Path) -> None:
         self._directory = directory
-        self._cache: dict[str, _CachedScenario] = {}
+        self._cache: OrderedDict[str, _CachedScenario] = OrderedDict()
+        self._summaries: dict[str, _CachedSummary] = {}
 
     def _check_directory(self) -> None:
         if not self._directory.is_dir():
             logger.error("Scenario directory is unavailable: %s", self._directory)
             raise ScenarioDataError("Scenario data directory is unavailable")
 
-    def _read(self, scenario_id: str) -> Scenario:
+    def _locate(self, scenario_id: str) -> tuple[Path, tuple[int, int]]:
         path = self._directory / scenario_id / JOURNEYS_FILENAME
         try:
             stat = path.stat()
@@ -62,9 +82,13 @@ class ScenarioRepository:
         except OSError as exc:
             logger.error("Cannot access scenario file %s", path)
             raise ScenarioDataError("Scenario data is unreadable") from exc
-        signature = (stat.st_mtime_ns, stat.st_size)
+        return path, (stat.st_mtime_ns, stat.st_size)
+
+    def _read(self, scenario_id: str) -> Scenario:
+        path, signature = self._locate(scenario_id)
         cached = self._cache.get(scenario_id)
         if cached is not None and cached.signature == signature:
+            self._cache.move_to_end(scenario_id)
             return cached.scenario
         try:
             document = ScenarioDocument.model_validate_json(path.read_bytes())
@@ -86,7 +110,27 @@ class ScenarioRepository:
             journeys=document.journeys,
         )
         self._cache[scenario_id] = _CachedScenario(signature, scenario)
+        while len(self._cache) > _SCENARIO_CACHE_SIZE:
+            self._cache.popitem(last=False)
+        self._summaries[scenario_id] = _CachedSummary(signature, _summarize(scenario))
         return scenario
+
+    def _read_summary(self, scenario_id: str) -> ScenarioSummary:
+        """Summary from the file header; falls back to a full read when metadata must be generated."""
+        path, signature = self._locate(scenario_id)
+        cached = self._summaries.get(scenario_id)
+        if cached is not None and cached.signature == signature:
+            return cached.summary
+        try:
+            data = path.read_bytes()
+        except OSError as exc:
+            logger.error("Cannot read scenario file %s", path)
+            raise ScenarioDataError("Scenario data is unreadable") from exc
+        summary = _summary_from_header(scenario_id, data)
+        if summary is None:
+            return _summarize(self._read(scenario_id))
+        self._summaries[scenario_id] = _CachedSummary(signature, summary)
+        return summary
 
     def _scenario_ids(self) -> list[str]:
         self._check_directory()
@@ -107,11 +151,43 @@ class ScenarioRepository:
         return scenario_ids
 
     def list_scenarios(self) -> list[ScenarioSummary]:
-        return [
-            ScenarioSummary.model_validate(self._read(scenario_id).model_dump(exclude={"journeys"}))
-            for scenario_id in self._scenario_ids()
-        ]
+        return [self._read_summary(scenario_id) for scenario_id in self._scenario_ids()]
 
     def get_scenario(self, scenario_id: str) -> Scenario:
         self._check_directory()
         return self._read(scenario_id)
+
+
+def _summarize(scenario: Scenario) -> ScenarioSummary:
+    return ScenarioSummary.model_validate(scenario.model_dump(exclude={"journeys"}))
+
+
+def _summary_from_header(scenario_id: str, data: bytes) -> ScenarioSummary | None:
+    """
+    Validated summary built from the root fields and a count of journeys, or None when the
+    header cannot provide it (fields after `journeys`, missing name or description).
+    Journeys themselves are fully validated when the scenario is requested.
+    """
+    try:
+        root = from_json(data[:_HEADER_PREFIX_BYTES], allow_partial=True)
+    except ValueError:
+        return None
+    if not isinstance(root, dict):
+        return None
+    root.pop("journeys", None)
+    try:
+        header = ScenarioDocumentHeader.model_validate(root)
+    except ValidationError:
+        return None
+    journey_count = data.count(_JOURNEY_ID_KEY)
+    if header.name is None or header.description is None or journey_count == 0:
+        return None
+    return ScenarioSummary(
+        id=scenario_id,
+        name=header.name,
+        description=header.description,
+        metadata_generated=False,
+        origin=header.origin,
+        departure_time=header.departure_time,
+        journey_count=journey_count,
+    )

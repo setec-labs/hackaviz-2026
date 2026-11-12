@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from hackaviz_2026.routing import JourneyReport, ReportResponse, Scenario
+from hackaviz_2026.routing import JourneyReport, ReportResponse, Scenario, ScenarioDocument
 from routing.main import app, get_routing_service
 from routing.providers import UnimplementedReportProvider
 from routing.repository import ScenarioRepository
@@ -83,13 +83,57 @@ class RoutingApiTests(unittest.TestCase):
 
     def test_unchanged_files_are_read_once(self) -> None:
         path = self.write()
-        self.assertEqual(self.client.get("/scenarios").status_code, 200)
+        self.assertEqual(self.client.get("/scenarios/Test-Scenario").status_code, 200)
         with patch.object(Path, "read_bytes", side_effect=AssertionError("cache miss")):
             self.assertEqual(self.client.get("/scenarios/Test-Scenario").status_code, 200)
+            self.assertEqual(self.client.get("/scenarios").status_code, 200)
         payload = make_document_payload()
         payload["name"] = "Nom modifié et plus long"
         path.write_text(json.dumps(payload), encoding="utf-8")
         self.assertEqual(self.client.get("/scenarios/Test-Scenario").json()["name"], payload["name"])
+
+    def test_listing_reads_only_the_header_and_counts_journeys(self) -> None:
+        self.write()
+        with patch.object(ScenarioDocument, "model_validate_json", side_effect=AssertionError("full parse")):
+            response = self.client.get("/scenarios")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            [make_scenario("Test-Scenario").model_dump(mode="json", exclude={"journeys"})],
+        )
+
+    def test_listing_falls_back_to_a_full_read_when_the_header_is_incomplete(self) -> None:
+        payload = make_document_payload()
+        journeys = payload.pop("journeys")
+        write_document(self.directory, "Test-Scenario", json.dumps({"journeys": journeys, **payload}))
+        # The fixture is small: shrink the header window so that `journeys` comes first in it.
+        with patch("routing.repository._HEADER_PREFIX_BYTES", 32):
+            response = self.client.get("/scenarios")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["journey_count"], 2)
+        self.write("Generated", with_metadata=False)
+        with self.assertLogs("routing.repository", level="WARNING"):
+            self.assertTrue(self.client.get("/scenarios").json()[0]["metadata_generated"])
+
+    def test_invalid_journeys_are_reported_when_the_scenario_is_requested(self) -> None:
+        payload = make_document_payload()
+        payload["journeys"][0]["coordinates"] = []
+        write_document(self.directory, "Test-Scenario", json.dumps(payload))
+        self.assertEqual(self.client.get("/scenarios").status_code, 200)
+        with self.assertLogs("routing.repository", level="ERROR"):
+            self.assertEqual(self.client.get("/scenarios/Test-Scenario").status_code, 503)
+
+    def test_only_the_most_recent_scenarios_stay_in_memory(self) -> None:
+        for scenario_id in ("a", "b", "c"):
+            self.write(scenario_id)
+            self.assertEqual(self.client.get(f"/scenarios/{scenario_id}").status_code, 200)
+        with patch.object(Path, "read_bytes", side_effect=AssertionError("cache miss")):
+            self.assertEqual(self.client.get("/scenarios/c").status_code, 200)
+            self.assertEqual(self.client.get("/scenarios/b").status_code, 200)
+            self.assertEqual(self.client.get("/scenarios").status_code, 200)
+        with patch.object(Path, "read_bytes", side_effect=PermissionError("evicted")):
+            with self.assertLogs("routing.repository", level="ERROR"):
+                self.assertEqual(self.client.get("/scenarios/a").status_code, 503)
 
     def test_missing_scenario_and_invalid_id(self) -> None:
         self.assertEqual(self.client.get("/scenarios/unknown").status_code, 404)

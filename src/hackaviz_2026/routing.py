@@ -84,8 +84,8 @@ def _check_scenario_journeys(journeys: list[Journey], departure_time: datetime) 
         raise ValueError("Journeys must not start before the scenario departure_time")
 
 
-class ScenarioDocument(BaseModel):
-    """Content of a `journeys.json` file produced by the routing pipeline (one file per scenario)."""
+class ScenarioDocumentHeader(BaseModel):
+    """Root fields of a `journeys.json` file, without its journeys."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -93,6 +93,11 @@ class ScenarioDocument(BaseModel):
     description: NonEmptyString | None = None
     origin: Position
     departure_time: AwareDatetime
+
+
+class ScenarioDocument(ScenarioDocumentHeader):
+    """Content of a `journeys.json` file produced by the routing pipeline (one file per scenario)."""
+
     journeys: list[Journey] = Field(min_length=1)
 
     @model_validator(mode="after")

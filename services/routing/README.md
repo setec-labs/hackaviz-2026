@@ -79,6 +79,15 @@ ignoré ; un dossier au nom invalide est une erreur. Le catalogue est trié par
 nom de dossier. Chaque fichier n'est relu que si sa date de modification ou sa
 taille change (cache en mémoire).
 
+Les fichiers du pipeline pèsent environ 150 Mo (1 269 trajets, ~2 millions de
+points). `GET /scenarios` ne lit donc que les champs racine écrits avant
+`journeys` (64 premiers Ko) et compte les `journey_id` : la liste prend ~2 s à
+froid au lieu de ~30 s. Si `name` ou `description` manquent, ou si l'en-tête est
+incomplet, le fichier est lu et validé en entier. La validation complète des
+trajets a lieu à `GET /scenarios/{id}` (erreur 503 si invalide) et dans
+`tests/test_local_data.py`. Seuls les 2 derniers scénarios complets restent en
+mémoire.
+
 Les contrats Pydantic sont définis dans
 [`src/hackaviz_2026/routing.py`](../../src/hackaviz_2026/routing.py) :
 
