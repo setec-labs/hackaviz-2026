@@ -1,0 +1,20 @@
+[
+  {
+    "scenario_id": "Metropolis",
+    "origin_lat": 48.757657,
+    "origin_lon": 2.348038,
+    "departure_time": "04:00:00"
+  },
+  {
+    "scenario_id": "AccorHotel-Arena",
+    "origin_lat": 48.839492,
+    "origin_lon": 2.380064,
+    "departure_time": "00:05:00"
+  },
+  {
+    "scenario_id": "CHU-Avicenne",
+    "origin_lat": 48.915992,
+    "origin_lon": 2.424765,
+    "departure_time": "00:05:00"
+  }
+]

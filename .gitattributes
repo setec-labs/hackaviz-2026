@@ -5,3 +5,4 @@ data/input/**/shapes.txt filter=lfs diff=lfs merge=lfs -text
 data/output/transit_accessibility_cache/**/*.npz filter=lfs diff=lfs merge=lfs -text
 data/output/transit_accessibility_cache/**/*.npy filter=lfs diff=lfs merge=lfs -text
 data/input/IDFM-gtfs-0511/shapes.txt filter=lfs diff=lfs merge=lfs -text
+data/input/IDFM-gtfs-0511/object_codes_extension.txt filter=lfs diff=lfs merge=lfs -text
