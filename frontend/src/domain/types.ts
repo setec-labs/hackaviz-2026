@@ -22,8 +22,12 @@ export interface Trip {
   id: string;
   /** Nom de la destination s'il est fourni, sinon null. */
   destinationName: string | null;
+  /** Population de la zone de destination si l'API la fournit, sinon null. */
+  destinationPopulation: number | null;
   /** Mode de deplacement s'il est fourni par l'API, sinon null. */
   mode: string | null;
+  /** Mode du troncon (`walk_access`, `wait`, `transit`...) auquel appartient chaque position. */
+  pointModes: string[];
   /** Debut et fin en millisecondes epoch UTC. */
   startTimeMs: number;
   endTimeMs: number;

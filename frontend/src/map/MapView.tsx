@@ -4,8 +4,10 @@ import { Map as MapLibreMap, NavigationControl, setWorkerUrl, type IControl } fr
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
+import type { Arrival } from "../data/arrivals";
 import type { RenderDataset } from "../data/prepareDataset";
 import type { ScenarioSummary } from "../domain/types";
+import { ArrivalTracker } from "../layers/arrivalTracker";
 import { buildLayers, LAYER_IDS } from "../layers/buildLayers";
 import { HeadBuffers } from "../layers/headPositions";
 import { buildTooltip } from "../layers/tooltip";
@@ -21,6 +23,8 @@ interface MapViewProps {
   scenarios: ScenarioSummary[];
   selectedScenarioId: string | null;
   onScenarioSelect: (scenarioId: string) => void;
+  /** Appele lorsque de nouvelles bulles d'arrivee apparaissent pendant la lecture. */
+  onArrivals?: (arrivals: Arrival[]) => void;
   onMapError: (message: string) => void;
 }
 
@@ -28,15 +32,23 @@ interface MapViewProps {
  * Carte MapLibre + overlay deck.gl. Le rendu des couches est pilote directement par
  * l'horloge (`clock.onFrame`) : aucun rendu React n'a lieu pendant l'animation.
  */
-export function MapView({ dataset, clock, scenarios, selectedScenarioId, onScenarioSelect, onMapError }: MapViewProps) {
+export function MapView({
+  dataset,
+  clock,
+  scenarios,
+  selectedScenarioId,
+  onScenarioSelect,
+  onArrivals,
+  onMapError,
+}: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<MapboxOverlay | null>(null);
   const datasetRef = useRef<RenderDataset | null>(dataset);
   const headsRef = useRef<HeadBuffers | null>(null);
   const selectedRef = useRef<string | null>(selectedScenarioId);
   selectedRef.current = selectedScenarioId;
-  const callbacksRef = useRef({ onScenarioSelect, onMapError });
-  callbacksRef.current = { onScenarioSelect, onMapError };
+  const callbacksRef = useRef({ onScenarioSelect, onArrivals, onMapError });
+  callbacksRef.current = { onScenarioSelect, onArrivals, onMapError };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -100,8 +112,18 @@ export function MapView({ dataset, clock, scenarios, selectedScenarioId, onScena
     if (!overlay) return;
     const heads = dataset ? new HeadBuffers(dataset.trips.length) : null;
     headsRef.current = heads;
-    const render = (time: number) =>
-      overlay.setProps({ layers: buildLayers({ dataset, heads, time, scenarios, selectedScenarioId }) });
+    const arrivals = dataset
+      ? new ArrivalTracker(dataset.arrivals, (fresh) => callbacksRef.current.onArrivals?.(fresh))
+      : null;
+    // Les bulles deja atteintes a l'ouverture du scenario s'affichent sans flash ni son.
+    arrivals?.sync(clock.time);
+    const render = (time: number) => {
+      const nowMs = performance.now();
+      arrivals?.update(time, nowMs);
+      overlay.setProps({
+        layers: buildLayers({ dataset, heads, time, scenarios, selectedScenarioId, arrivals, nowMs }),
+      });
+    };
     render(clock.time);
     return dataset ? clock.onFrame(render) : undefined;
   }, [dataset, clock, scenarios, selectedScenarioId]);

@@ -1,11 +1,13 @@
 import type { SafetyIndexValue, Trip } from "../domain/types";
 import { classifySafetyIndex, safetyIndexColor } from "../domain/safetyLevels";
 import type { Rgba } from "../theme/palette";
+import { buildArrivals, buildConstellation, type Arrival, type ConstellationLink } from "./arrivals";
 
 /** Trajet pret a etre rendu par deck.gl (temps en secondes relatives a `originMs`). */
 export interface RenderTrip {
   id: string;
   destinationName: string | null;
+  destinationPopulation: number | null;
   mode: string | null;
   path: [number, number][];
   /** Secondes depuis `RenderDataset.originMs` (Float32 cote GPU : rester sur des valeurs moderees). */
@@ -22,6 +24,10 @@ export interface RenderTrip {
 
 export interface RenderDataset {
   trips: RenderTrip[];
+  /** Arrivees (bulles), triees par instant d'arrivee. */
+  arrivals: Arrival[];
+  /** Liens de la constellation, tries par instant d'apparition. */
+  constellation: ConstellationLink[];
   /** Instant de reference (ms epoch) correspondant au temps simule 0. */
   originMs: number;
   startTime: number;
@@ -35,7 +41,7 @@ export interface RenderDataset {
 export function prepareDataset(trips: Trip[], safetyValues: SafetyIndexValue[] | null): RenderDataset {
   const originMs = trips.reduce((min, trip) => Math.min(min, trip.startTimeMs), Number.POSITIVE_INFINITY);
   if (!Number.isFinite(originMs)) {
-    return { trips: [], originMs: 0, startTime: 0, endTime: 0 };
+    return { trips: [], arrivals: [], constellation: [], originMs: 0, startTime: 0, endTime: 0 };
   }
 
   let cursor = 0;
@@ -53,6 +59,7 @@ export function prepareDataset(trips: Trip[], safetyValues: SafetyIndexValue[] |
     return {
       id: trip.id,
       destinationName: trip.destinationName,
+      destinationPopulation: trip.destinationPopulation,
       mode: trip.mode,
       path: trip.path,
       timestamps,
@@ -64,7 +71,8 @@ export function prepareDataset(trips: Trip[], safetyValues: SafetyIndexValue[] |
     };
   });
 
-  return { trips: renderTrips, originMs, startTime: 0, endTime };
+  const arrivals = buildArrivals(renderTrips);
+  return { trips: renderTrips, arrivals, constellation: buildConstellation(arrivals), originMs, startTime: 0, endTime };
 }
 
 export function countActiveTrips(dataset: RenderDataset, time: number): number {

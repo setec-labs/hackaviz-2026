@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createDataClients } from "./api";
+import arrivalChimeUrl from "./assets/arrival-chime.wav?url";
+import { ArrivalChime } from "./audio/arrivalChime";
 import { ControlPanel } from "./components/ControlPanel";
 import { Legend } from "./components/Legend";
 import { ScenarioPicker } from "./components/ScenarioPicker";
 import { StatusOverlay } from "./components/StatusOverlay";
 import { loadConfig } from "./config";
+import { populationScale, type Arrival } from "./data/arrivals";
 import { useScenarios } from "./data/useScenarios";
 import { useTripData } from "./data/useTripData";
 import { MapView } from "./map/MapView";
@@ -15,6 +18,7 @@ export function App() {
   const config = useMemo(() => loadConfig(), []);
   const clients = useMemo(() => createDataClients(config), [config]);
   const clock = useMemo(() => new SimulationClock({ realSecondsPerSimHour: DEFAULT_REAL_SECONDS_PER_SIM_HOUR }), []);
+  const chime = useMemo(() => new ArrivalChime(arrivalChimeUrl), []);
   const catalog = useScenarios(clients.scenarios);
   const scenarios = useMemo(() => (catalog.status === "success" ? catalog.scenarios : []), [catalog]);
   const [requestedScenarioId, setRequestedScenarioId] = useState<string | null>(null);
@@ -51,6 +55,13 @@ export function App() {
   }, [clock]);
 
   const handleScenarioSelect = useCallback((scenarioId: string) => setRequestedScenarioId(scenarioId), []);
+  const handleArrivals = useCallback(
+    (arrivals: Arrival[]) => {
+      const largest = Math.max(...arrivals.map((arrival) => arrival.population));
+      chime.play(populationScale(largest));
+    },
+    [chime],
+  );
   const simulatedLabel = getSimulatedLabel(clients.tripsSimulated, clients.safetySimulated);
 
   return (
@@ -61,6 +72,7 @@ export function App() {
         scenarios={scenarios}
         selectedScenarioId={selectedScenarioId}
         onScenarioSelect={handleScenarioSelect}
+        onArrivals={handleArrivals}
         onMapError={setMapError}
       />
 
@@ -95,10 +107,10 @@ export function App() {
           {mapError && <Notice>{mapError}</Notice>}
           {data.status === "success" && data.safetyError && (
             <Notice>
-              Indicateur de sentiment de sécurité indisponible : les trajets sont affichés en « non disponible ».
+              Indicateur de sentiment de sécurité indisponible : les tronçons à pied et d'attente sont affichés en « non disponible ».
             </Notice>
           )}
-          <ControlPanel clock={clock} dataset={dataset} />
+          <ControlPanel clock={clock} dataset={dataset} chime={chime} />
         </div>
       </div>
 

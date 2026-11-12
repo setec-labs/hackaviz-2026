@@ -4,6 +4,8 @@ import { PathLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { RenderDataset, RenderTrip } from "../data/prepareDataset";
 import type { ScenarioSummary } from "../domain/types";
 import { rgba } from "../theme/palette";
+import { buildArrivalLayers } from "./arrivalLayers";
+import type { ArrivalTracker } from "./arrivalTracker";
 import type { HeadBuffers } from "./headPositions";
 
 /** Longueur de la trainee, en secondes simulees. */
@@ -29,6 +31,10 @@ export interface LayerInputs {
   time: number;
   scenarios: ScenarioSummary[];
   selectedScenarioId: string | null;
+  /** Suivi des bulles d'arrivee, mis a jour pour `time` par l'appelant. */
+  arrivals?: ArrivalTracker | null;
+  /** Temps reel en ms (animations independantes de la vitesse de simulation). */
+  nowMs?: number;
 }
 
 const scenarioPosition = (scenario: ScenarioSummary): [number, number] => [
@@ -82,7 +88,15 @@ function buildScenarioLayers(scenarios: ScenarioSummary[], selectedScenarioId: s
  * l'horloge : deck.gl compare les props et ne reenvoie au GPU que ce qui a change
  * (essentiellement `currentTime` et les positions de tete).
  */
-export function buildLayers({ dataset, heads, time, scenarios, selectedScenarioId }: LayerInputs): Layer[] {
+export function buildLayers({
+  dataset,
+  heads,
+  time,
+  scenarios,
+  selectedScenarioId,
+  arrivals = null,
+  nowMs = 0,
+}: LayerInputs): Layer[] {
   const scenarioLayers = buildScenarioLayers(scenarios, selectedScenarioId);
   if (!dataset || !heads) {
     return scenarioLayers;
@@ -135,6 +149,15 @@ export function buildLayers({ dataset, heads, time, scenarios, selectedScenarioI
       autoHighlight: true,
       highlightColor: rgba("selection", 220),
     }),
+    ...(arrivals
+      ? buildArrivalLayers({
+          dataset,
+          time,
+          arrivedCount: arrivals.arrivedCount,
+          flashes: arrivals.activeFlashes(nowMs),
+          nowMs,
+        })
+      : []),
     new ScatterplotLayer({
       id: LAYER_IDS.heads,
       // Des vues `subarray` neuves a chaque image forcent deck.gl a reenvoyer les buffers.

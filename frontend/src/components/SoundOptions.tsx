@@ -1,18 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import ambientLoopUrl from "../assets/ambient-loop.wav?url";
+import type { ArrivalChime } from "../audio/arrivalChime";
 
-export function SoundOptions() {
+export function SoundOptions({ chime }: { chime?: ArrivalChime }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [volume, setVolume] = useState(50);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chimeEnabled, setChimeEnabled] = useState(chime?.enabled ?? false);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (audio) audio.volume = volume / 100;
-  }, [volume]);
+    if (chime) chime.volume = volume / 100;
+  }, [volume, chime]);
+
+  useEffect(() => {
+    if (chime) chime.enabled = chimeEnabled;
+  }, [chimeEnabled, chime]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -99,6 +106,17 @@ export function SoundOptions() {
         />
         <span className="w-9 font-mono text-ink-muted tabular-nums" aria-hidden="true">{volume} %</span>
         <p className="w-full text-ink-muted">Boucle de 41 secondes, indépendante de la simulation.</p>
+        {chime && (
+          <label className="flex w-full cursor-pointer items-center gap-2 text-ink">
+            <input
+              type="checkbox"
+              checked={chimeEnabled}
+              onChange={(event) => setChimeEnabled(event.target.checked)}
+              className="cursor-pointer accent-selection focus-visible:outline-2 focus-visible:outline-selection"
+            />
+            Tintement à chaque arrivée (même volume)
+          </label>
+        )}
         {autoplayBlocked && (
           <p role="status" className="w-full text-ink-muted">
             Le navigateur bloque la lecture automatique. Cliquez sur « Activer l'ambiance sonore ».

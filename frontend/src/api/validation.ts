@@ -83,12 +83,29 @@ function parseJourney(raw: unknown, where: string): Trip {
   if (!Array.isArray(journey.legs) || journey.legs.length === 0) {
     throw new ContractError(`${where}: at least one leg is required`);
   }
-  const legModes = journey.legs.map((leg: unknown, index) =>
-    readString(readRecord(leg, `${where}.legs[${index}]`).mode, `${where}.legs[${index}].mode`),
-  );
   const { coordinates, offsets_s: offsets } = journey;
   if (!Array.isArray(coordinates) || coordinates.length < 2) {
     throw new ContractError(`${where}: at least two coordinates are required`);
+  }
+  const legModes: string[] = [];
+  const pointModes: string[] = [];
+  journey.legs.forEach((rawLeg: unknown, index) => {
+    const legWhere = `${where}.legs[${index}]`;
+    const leg = readRecord(rawLeg, legWhere);
+    const mode = readString(leg.mode, `${legWhere}.mode`);
+    const range = leg.point_range;
+    // point_range est un intervalle semi-ouvert [debut, fin) ; les troncons partitionnent les positions.
+    if (
+      !Array.isArray(range) || range.length !== 2 || range[0] !== pointModes.length ||
+      !Number.isInteger(range[1]) || range[1] <= range[0] || range[1] > coordinates.length
+    ) {
+      throw new ContractError(`${legWhere}.point_range: legs must partition the coordinates in order`);
+    }
+    legModes.push(mode);
+    for (let point = range[0]; point < range[1]; point += 1) pointModes.push(mode);
+  });
+  if (pointModes.length !== coordinates.length) {
+    throw new ContractError(`${where}: legs must cover every coordinate`);
   }
   if (!Array.isArray(offsets) || offsets.length !== coordinates.length) {
     throw new ContractError(`${where}: offsets_s must have one value per coordinate`);
@@ -114,7 +131,25 @@ function parseJourney(raw: unknown, where: string): Trip {
     timestampsMs.push(timestamp);
   });
 
-  return { id, destinationName, mode: summarizeJourneyMode(legModes), startTimeMs, endTimeMs, path, timestampsMs };
+  return {
+    id,
+    destinationName,
+    destinationPopulation: readPopulation(destination.population, `${where}.destination.population`),
+    mode: summarizeJourneyMode(legModes),
+    pointModes,
+    startTimeMs,
+    endTimeMs,
+    path,
+    timestampsMs,
+  };
+}
+
+function readPopulation(value: unknown, where: string): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw new ContractError(`${where}: expected an integer >= 0 or null`);
+  }
+  return value;
 }
 
 function parseScenarioSummary(raw: unknown, where: string): ScenarioSummary {

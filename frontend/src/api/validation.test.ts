@@ -87,7 +87,9 @@ describe("parseScenarioResponse", () => {
       {
         id: "j-1",
         destinationName: "Paris 10e",
+        destinationPopulation: null,
         mode: "transit",
+        pointModes: ["walk_access", "walk_access", "transit"],
         startTimeMs: start,
         endTimeMs: Date.parse(journey.end_time),
         path: journey.coordinates,
@@ -96,8 +98,18 @@ describe("parseScenarioResponse", () => {
     ]);
   });
 
+  it("reads the destination population when provided", () => {
+    const withPopulation = { ...journey, destination: { ...journey.destination, population: 12_345 } };
+    const [trip] = parseScenarioResponse({ ...scenario, journeys: [withPopulation] }, "CHU-Avicenne");
+    expect(trip?.destinationPopulation).toBe(12_345);
+  });
+
+  const legs = journey.legs;
   it.each([
     ["another scenario", { ...scenario, id: "Metropolis" }],
+    ["negative population", { ...scenario, journeys: [{ ...journey, destination: { ...journey.destination, population: -1 } }] }],
+    ["gap between legs", { ...scenario, journeys: [{ ...journey, legs: [legs[0], { ...legs[1], point_range: [1, 3] }] }] }],
+    ["uncovered points", { ...scenario, journeys: [{ ...journey, legs: [{ ...legs[0], point_range: [0, 2] }] }] }],
     ["count mismatch", { ...scenario, journey_count: 2 }],
     ["no legs", { ...scenario, journeys: [{ ...journey, legs: [] }] }],
     ["single point", { ...scenario, journeys: [{ ...journey, coordinates: [[2.4, 48.9]], offsets_s: [0] }] }],

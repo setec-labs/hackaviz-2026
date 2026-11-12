@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { DataClients } from "../api/clients";
 import type { SafetyIndexValue } from "../domain/types";
 import { prepareDataset, type RenderDataset } from "./prepareDataset";
+import { collectPedestrianPoints, mergeSafetyValues } from "./safetySampling";
 
 export type TripDataState =
   | { status: "idle" }
@@ -14,9 +15,10 @@ export function describeError(error: unknown): string {
 }
 
 /**
- * Charge les trajets du scenario selectionne puis l'indice pour tous leurs sommets.
- * Une panne du service indice n'empeche pas l'affichage des trajets : l'indicateur
- * est alors signale comme non disponible plutot que remplace par une valeur inventee.
+ * Charge les trajets du scenario selectionne puis l'indice pour les positions de marche et
+ * d'attente (voir `safetySampling.ts`). Une panne du service indice n'empeche pas l'affichage
+ * des trajets : ces positions sont alors signalees comme non disponibles plutot que remplacees
+ * par une valeur inventee.
  */
 export function useTripData(
   clients: DataClients,
@@ -37,19 +39,22 @@ export function useTripData(
     (async () => {
       try {
         const trips = await clients.scenarios.fetchScenarioTrips(scenarioId, controller.signal);
-        const points = trips.flatMap((trip) => trip.path.map(([longitude, latitude]) => ({ latitude, longitude })));
-        let safetyValues: SafetyIndexValue[] | null = null;
+        const points = collectPedestrianPoints(trips);
+        let pedestrianValues: SafetyIndexValue[] | null = null;
         let safetyError: string | null = null;
         if (points.length > 0) {
           try {
-            safetyValues = await clients.safety.fetchSafetyIndices(points, controller.signal);
+            pedestrianValues = await clients.safety.fetchSafetyIndices(points, controller.signal);
           } catch (error) {
             if (controller.signal.aborted) return;
             safetyError = describeError(error);
             console.error("Safety index service failed", error);
           }
+        } else {
+          pedestrianValues = [];
         }
         if (controller.signal.aborted) return;
+        const safetyValues = mergeSafetyValues(trips, pedestrianValues);
         setState({ status: "success", dataset: prepareDataset(trips, safetyValues), safetyError });
       } catch (error) {
         if (controller.signal.aborted) return;

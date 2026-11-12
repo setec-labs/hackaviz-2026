@@ -1,4 +1,5 @@
 import { useMemo, type CSSProperties } from "react";
+import type { ArrivalChime } from "../audio/arrivalChime";
 import { countActiveTrips, type RenderDataset } from "../data/prepareDataset";
 import type { SimulationClock } from "../simulation/SimulationClock";
 import { SPEED_PRESETS } from "../simulation/speedPresets";
@@ -9,6 +10,7 @@ import { SoundOptions } from "./SoundOptions";
 interface ControlPanelProps {
   clock: SimulationClock;
   dataset: RenderDataset | null;
+  chime?: ArrivalChime;
 }
 
 function PlayIcon() {
@@ -45,7 +47,7 @@ function RestartIcon() {
 const iconButton =
   "flex h-10 w-10 items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection disabled:cursor-not-allowed disabled:opacity-40";
 
-export function ControlPanel({ clock, dataset }: ControlPanelProps) {
+export function ControlPanel({ clock, dataset, chime }: ControlPanelProps) {
   const snapshot = useClockSnapshot(clock);
   const hasData = dataset !== null && dataset.trips.length > 0;
   const originMs = dataset?.originMs ?? 0;
@@ -155,7 +157,7 @@ export function ControlPanel({ clock, dataset }: ControlPanelProps) {
           );
         })}
       </fieldset>
-      <SoundOptions />
+      <SoundOptions chime={chime} />
     </details>
   );
 }

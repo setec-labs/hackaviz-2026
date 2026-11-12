@@ -10,7 +10,9 @@ const trips: Trip[] = [
   {
     id: "a",
     destinationName: "Destination A",
+    destinationPopulation: 12_000,
     mode: "walk",
+    pointModes: ["walk_access", "transit", "transit"],
     startTimeMs: base,
     endTimeMs: base + 200_000,
     path: [
@@ -23,7 +25,9 @@ const trips: Trip[] = [
   {
     id: "b",
     destinationName: null,
+    destinationPopulation: null,
     mode: null,
+    pointModes: ["wait", "walk_egress"],
     startTimeMs: base + 150_000,
     endTimeMs: base + 300_000,
     path: [
@@ -68,7 +72,25 @@ describe("prepareDataset", () => {
   });
 
   it("handles an empty trip list", () => {
-    expect(prepareDataset([], null)).toEqual({ trips: [], originMs: 0, startTime: 0, endTime: 0 });
+    expect(prepareDataset([], null)).toEqual({
+      trips: [],
+      arrivals: [],
+      constellation: [],
+      originMs: 0,
+      startTime: 0,
+      endTime: 0,
+    });
+  });
+
+  it("builds arrival bubbles sorted by arrival time", () => {
+    const dataset = prepareDataset(trips, [1, 0.3, null, 0, 0.5]);
+    expect(dataset.arrivals.map((arrival) => [arrival.id, arrival.time, arrival.position])).toEqual([
+      ["a", 200, [2.4, 48.9]],
+      ["b", 300, [2.1, 48.1]],
+    ]);
+    expect(dataset.arrivals[0]).toMatchObject({ population: 12_000, populationSimulated: false, lowestSafety: 0.3 });
+    expect(dataset.arrivals[1]).toMatchObject({ populationSimulated: true, lowestSafety: 0 });
+    expect(dataset.constellation).toEqual([{ from: [2.4, 48.9], to: [2.1, 48.1], time: 300 }]);
   });
 });
 

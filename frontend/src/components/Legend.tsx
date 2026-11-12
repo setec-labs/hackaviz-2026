@@ -52,8 +52,20 @@ export function Legend({ safetySimulated }: { safetySimulated: boolean }) {
         <p className="mt-2 text-[11px] leading-snug text-ink-muted">
           {safetySimulated
             ? "Indice simulé, sans lien avec des lieux réels."
-            : "Indice actuellement calculé à partir de l'éclairage nocturne uniquement."}
+            : "Indice actuellement calculé à partir de l'éclairage nocturne uniquement."}{" "}
+          Il n'est évalué que sur les tronçons à pied et d'attente ; les autres tronçons reçoivent une
+          valeur neutre provisoire de 0,5.
         </p>
+        <div className="mt-2 flex items-start gap-2 text-[11px] leading-snug text-ink-muted">
+          <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center" aria-hidden="true">
+            <span className="block h-3 w-3 rounded-full bg-selection/70 shadow-[0_0_8px_3px] shadow-selection/50" />
+          </span>
+          <span>
+            <span className="text-ink">Bulles d'arrivée</span> : taille proportionnelle à la population de la
+            zone (simulée tant que les données ne la fournissent pas) ; couleur selon l'anxiété maximale
+            (indicateur le plus bas) sur les 10 dernières minutes du trajet.
+          </span>
+        </div>
         <p className="mt-1 text-[11px] leading-snug text-ink-muted">
           {SAFETY_INDEX_DISCLAIMER} La taille du point de tête augmente avec le niveau de vigilance.
         </p>

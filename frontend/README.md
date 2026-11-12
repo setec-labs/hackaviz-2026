@@ -100,6 +100,14 @@ Les valeurs par défaut peuvent aussi être définies avec `VITE_DATA_SOURCE`, `
   (0 % pour couper le son), indépendante de la pause et de la vitesse de simulation.
   Si le navigateur bloque la lecture automatique, « Son en attente » apparaît dans Options :
   cliquez sur « Activer l'ambiance sonore » pour autoriser la lecture.
+- **Bulles d'arrivée (constellation)** : à la fin d'un trajet, une bulle lumineuse apparaît à la
+  destination avec un anneau qui s'étend, puis reste affichée avec un halo scintillant. Sa **taille** suit
+  la population de la zone et sa **couleur** l'anxiété maximale sur les 10 dernières minutes du trajet
+  (indicateur le plus bas observé, anxiété = 1 − indicateur). Chaque bulle est reliée à l'arrivée
+  antérieure la plus proche, ce qui dessine une constellation. Le survol affiche la destination, l'heure,
+  la population et l'indicateur.
+- **Options → tintement** : un tintement est joué à chaque apparition de bulle, plus grave pour les zones
+  plus peuplées, au même volume que l'ambiance. Il peut être désactivé par une case à cocher.
 
 ## Architecture
 
@@ -125,7 +133,8 @@ frontend/
     ├── layers/                # couches deck.gl, positions courantes, infobulle
     ├── map/                   # carte MapLibre + overlay deck.gl, thème du fond de carte
     ├── components/            # composants UI (panneau de contrôle, légende, états, options sonores)
-    └── assets/                # boucle sonore locale (ambient-loop.wav)
+    ├── audio/                 # tintement d'arrivée (Web Audio)
+    └── assets/                # sons locaux (ambient-loop.wav, arrival-chime.wav)
 ```
 
 ### Flux de données
@@ -142,6 +151,9 @@ SafetyIndexClient.fetchSafetyIndices(pts) ──────────┘     
 - Si le service **routing** échoue, un message d'erreur avec bouton « Réessayer » est affiché.
 - Si le service **indice** échoue, les trajets restent affichés et l'indicateur est signalé
   « non disponible » (aucune valeur n'est inventée).
+- L'indice n'est demandé que pour les sommets des tronçons **à pied et d'attente** (`walk*`, `wait`) ;
+  les autres tronçons reçoivent la valeur neutre provisoire 0,5 (`src/data/safetySampling.ts`, TODO :
+  interroger safety autrement pour ces modes).
 
 ### Horloge et performance
 
@@ -173,6 +185,10 @@ Toutes les données simulées sont dans [`src/mocks/`](src/mocks/) :
   implémentent les mêmes interfaces que
   les clients HTTP et passent par le **même validateur** que les réponses réelles.
 
+Tant que les données ne fournissent pas `destination.population`, la population des bulles d'arrivée est
+simulée de façon déterministe à partir de l'identifiant du trajet (500 à 50 000 habitants, répartition
+log-uniforme, `src/data/arrivals.ts`) et signalée « (simulée) » dans l'infobulle.
+
 Les données sont déterministes pour une graine donnée et ne sont jamais codées dans les composants React.
 
 ## Brancher les API FastAPI
@@ -199,3 +215,9 @@ plusieurs briques ont vocation à être placés dans le package commun `src/hack
 
 Exécuter `npm run typecheck`, `npm test`, vérifier que `npm run dev` démarre correctement, puis pousser sur
 votre branche personnelle. La Pull Request devra cibler la branche `develop`.
+
+
+## Crédits sonores
+
+`src/assets/arrival-chime.wav` est un extrait (1,85 s, mono) de « Cluster chimes 1 » (ID 2687),
+LaSonotheque.fr.

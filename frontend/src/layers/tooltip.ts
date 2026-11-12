@@ -1,10 +1,12 @@
 import type { PickingInfo } from "@deck.gl/core";
 import { formatDuration, formatIndex, formatMode, formatSimulatedTime } from "../components/format";
+import { ARRIVAL_WINDOW_SECONDS, type Arrival } from "../data/arrivals";
 import type { RenderDataset, RenderTrip } from "../data/prepareDataset";
 import { classifySafetyIndex } from "../domain/safetyLevels";
 import type { ScenarioSummary } from "../domain/types";
 import { palette } from "../theme/palette";
 import type { HeadBuffers } from "./headPositions";
+import { ARRIVAL_LAYER_IDS } from "./arrivalLayers";
 import { LAYER_IDS } from "./buildLayers";
 
 function escapeHtml(text: string): string {
@@ -50,6 +52,22 @@ function scenarioLines(scenario: ScenarioSummary, selected: boolean): string[] {
   ];
 }
 
+const populationFormatter = new Intl.NumberFormat("fr-FR");
+
+function arrivalLines(dataset: RenderDataset, arrival: Arrival): string[] {
+  const muted = (text: string) => `<span style="color:${palette.textMuted}">${escapeHtml(text)}</span>`;
+  const anxiety = arrival.lowestSafety === null ? null : 1 - arrival.lowestSafety;
+  const windowMinutes = ARRIVAL_WINDOW_SECONDS / 60;
+  return [
+    `<strong>${escapeHtml(arrival.destinationName ?? arrival.id)}</strong>`,
+    `Arrivée ${formatSimulatedTime(dataset.originMs, arrival.time)}`,
+    `Population : ${populationFormatter.format(arrival.population)} hab.${arrival.populationSimulated ? " (simulée)" : ""}`,
+    `Anxiété max sur les ${windowMinutes} dernières minutes : ${formatIndex(anxiety)}`,
+    muted(`Indicateur le plus bas : ${formatIndex(arrival.lowestSafety)} — ${classifySafetyIndex(arrival.lowestSafety).label}`),
+    muted("Indicateur, pas une mesure objective du danger."),
+  ];
+}
+
 /**
  * Infobulle deck.gl : decrit un point de depart de scenario, un trajet et, pour un point
  * courant, l'indicateur associe.
@@ -69,6 +87,8 @@ export function buildTooltip(
     lines = scenarioLines(scenario, scenario.id === selectedScenarioId);
   } else if (!dataset) {
     return null;
+  } else if (info.layer?.id === ARRIVAL_LAYER_IDS.core && info.object) {
+    lines = arrivalLines(dataset, info.object as Arrival);
   } else if (info.layer?.id === LAYER_IDS.trips && info.object) {
     lines = tripLines(dataset, info.object as RenderTrip);
   } else if (info.layer?.id === LAYER_IDS.heads && heads && info.index < heads.count) {
