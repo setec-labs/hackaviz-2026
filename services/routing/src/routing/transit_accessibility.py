@@ -60,6 +60,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="02:00:00",
         help="Departure time in GTFS HH:MM:SS format.",
     )
+    parser.add_argument(
+        "--scenario-name",
+        default="scenario",
+        help="Scenario name to include in the exported JSON.",
+    )
+    parser.add_argument(
+        "--scenario-description",
+        default="",
+        help="Scenario description to include in the exported JSON.",
+    )
     parser.add_argument("--origin-lat", type=float, default=48.853563)
     parser.add_argument("--origin-lon", type=float, default=2.372961)
     parser.add_argument(
@@ -1336,6 +1346,8 @@ def main(argv: list[str] | None = None) -> None:
         offsets_s: List[float]
 
     class JourneyDocumentModel(BaseModel):
+        name: str
+        description: str
         origin: LocationModel
         departure_time: datetime
         journeys: List[JourneyModel]
@@ -1437,6 +1449,8 @@ def main(argv: list[str] | None = None) -> None:
         ))
 
     journey_document = JourneyDocumentModel(
+        name=args.scenario_name,
+        description=args.scenario_description,
         origin=LocationModel(latitude=ORIGIN_LAT, longitude=ORIGIN_LON),
         departure_time=departure_datetime,
         journeys=journey_models,

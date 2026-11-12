@@ -111,18 +111,24 @@ par origine et heure de départ :
 [
   {
     "scenario_id": "scenario-01",
+    "description": "Départ de la rue de Lappe à 2 h du matin.",
     "origin_lat": 48.853563,
     "origin_lon": 2.372961,
     "departure_time": "02:00:00"
   },
   {
     "scenario_id": "scenario-02",
+    "description": "Départ de la gare de Lyon à 6 h 30.",
     "origin_lat": 48.856600,
     "origin_lon": 2.352200,
     "departure_time": "06:30:00"
   }
 ]
 ```
+
+Le champ `description` est obligatoire et doit être une chaîne. L’identifiant
+`scenario_id` est écrit dans le JSON de sortie comme `name`, et `description`
+est également recopiée à la racine du document.
 
 Ajoutez les huit autres objets pour vos dix scénarios, puis lancez depuis la
 racine du dépôt :

@@ -25,7 +25,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--scenarios",
         type=Path,
         required=True,
-        help="JSON file containing scenario_id, origin_lat, origin_lon and departure_time.",
+        help=(
+            "JSON file containing scenario_id, description, origin_lat, "
+            "origin_lon and departure_time."
+        ),
     )
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
@@ -54,7 +57,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def load_scenarios(path: Path) -> list[dict]:
+def load_scenarios(path: Path) -> list[dict[str, str | float]]:
     try:
         scenarios = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -65,7 +68,13 @@ def load_scenarios(path: Path) -> list[dict]:
 
     validated = []
     seen_ids = set()
-    required_fields = {"scenario_id", "origin_lat", "origin_lon", "departure_time"}
+    required_fields = {
+        "scenario_id",
+        "description",
+        "origin_lat",
+        "origin_lon",
+        "departure_time",
+    }
     for index, scenario in enumerate(scenarios):
         if not isinstance(scenario, dict):
             raise ValueError(f"Le scénario à l'index {index} doit être un objet JSON.")
@@ -85,6 +94,10 @@ def load_scenarios(path: Path) -> list[dict]:
         if scenario_id in seen_ids:
             raise ValueError(f"scenario_id dupliqué: {scenario_id}")
         seen_ids.add(scenario_id)
+
+        description = scenario["description"]
+        if not isinstance(description, str):
+            raise ValueError(f"description doit être une chaîne de caractères ({scenario_id}).")
 
         try:
             latitude = float(scenario["origin_lat"])
@@ -111,6 +124,7 @@ def load_scenarios(path: Path) -> list[dict]:
         validated.append(
             {
                 "scenario_id": scenario_id,
+                "description": description,
                 "origin_lat": latitude,
                 "origin_lon": longitude,
                 "departure_time": departure_time,
@@ -119,13 +133,15 @@ def load_scenarios(path: Path) -> list[dict]:
     return validated
 
 
-def has_valid_journeys(path: Path) -> bool:
+def has_valid_journeys(path: Path, scenario: dict[str, str | float]) -> bool:
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return False
     return (
         isinstance(document, dict)
+        and document.get("name") == scenario["scenario_id"]
+        and document.get("description") == scenario["description"]
         and isinstance(document.get("journeys"), list)
         and bool(document["journeys"])
     )
@@ -154,7 +170,7 @@ def main(argv: list[str] | None = None) -> None:
         scenario_id = scenario["scenario_id"]
         scenario_output_dir = args.output_dir / scenario_id
         journey_file = scenario_output_dir / "journeys.json"
-        if args.resume and has_valid_journeys(journey_file):
+        if args.resume and has_valid_journeys(journey_file, scenario):
             skipped += 1
             print(
                 f"[{index}/{len(scenarios)}] {scenario_id}: résultat déjà présent, ignoré.",
@@ -175,6 +191,10 @@ def main(argv: list[str] | None = None) -> None:
             service_date.isoformat(),
             "--departure-time",
             scenario["departure_time"],
+            "--scenario-name",
+            scenario["scenario_id"],
+            "--scenario-description",
+            scenario["description"],
             "--origin-lat",
             str(scenario["origin_lat"]),
             "--origin-lon",

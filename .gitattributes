@@ -2,3 +2,6 @@ data/input/**/*.shp filter=lfs diff=lfs merge=lfs -text
 data/input/**/*.dbf filter=lfs diff=lfs merge=lfs -text
 data/input/**/stop_times.txt filter=lfs diff=lfs merge=lfs -text
 data/input/**/shapes.txt filter=lfs diff=lfs merge=lfs -text
+data/output/transit_accessibility_cache/**/*.npz filter=lfs diff=lfs merge=lfs -text
+data/output/transit_accessibility_cache/**/*.npy filter=lfs diff=lfs merge=lfs -text
+data/input/IDFM-gtfs-0511/shapes.txt filter=lfs diff=lfs merge=lfs -text
