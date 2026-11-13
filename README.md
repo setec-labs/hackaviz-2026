@@ -77,7 +77,11 @@ uv run --package routing transit-accessibility-scenarios `
 Il est possible d'ajouter un argment --max-destinations XX pour limiter le calcul à XX communes de destinations.
 
 Pour recalculer les scores de sérénité par arc TC, il faut lancer la commande :
-uv run --package routing python services\ridership\ridership_surface.py
+uv run --package routing python services\ridership\ridership_surface.py. Au préalable, il faut avoir déposé les données nécessaires dans data/input/frequentation :
+    - profilshoraires-fer-T4-2026.csv
+    - profilshoraires-surface-T4-2026.csv
+    - validations-fer-T4-2026.csv
+    - validations-surface-T4-2026.csv
 
 
 ## La licence
