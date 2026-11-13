@@ -39,7 +39,7 @@ un hackathon de datavisualisation sur les mobilités en Île-de-France, organis�
 - **Fond de carte** : © OpenStreetMap, © [CARTO](https://carto.com/attributions).
 - **Son d'arrivée** : extrait (1,85 s) de « Cluster chimes 1 » (ID 2687), LaSonotheque.fr.
 - **Présence humaine** : [OpenStreetMap](https://overpass-turbo.eu/), [BPE 2025, INSEE](https://www.insee.fr/fr/statistiques/8217525), [BD TOPO, IGN](https://geoservices.ign.fr/bdtopo), [Filosofi 2021 carroyé, INSEE](https://www.insee.fr/fr/statistiques/8735243).
-- **Eclairage nocturne** : Cartographies départementales de la radiance nocturne du satellite LuoJia - 2018 [https://www.data.gouv.fr/datasets/cartographies-departementales-de-la-radiance-nocturne-du-satellite-luojia-2018]
+- **Eclairage nocturne** : [Cartographies départementales de la radiance nocturne du satellite LuoJia - 2018](https://www.data.gouv.fr/datasets/cartographies-departementales-de-la-radiance-nocturne-du-satellite-luojia-2018).
 
 ## Licence
 

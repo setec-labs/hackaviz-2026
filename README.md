@@ -10,6 +10,12 @@ attente, l'éclairage nocturne, la densité de population et la fréquentation e
 > pas un outil de planification ni une mesure objective de la sécurité. Un indice défavorable,
 > un faible éclairage ou une faible fréquentation ne constituent pas une preuve qu'un lieu est dangereux.
 
+> **Pour lancer l'application après [installation](#installation), depuis la racine du dépôt :**
+> ```bash
+> uv run python scripts/run_services.py
+> ```
+> Une seule commande pour routing, safety et le frontend. Interface : <http://localhost:5173>.
+
 ![Carte animée des trajets de nuit au départ de Pigalle](docs/assets/carte.png)
 
 ## Présentation du projet
@@ -87,7 +93,8 @@ Les données mobilisées sont :
 - les validations journalières et profils horaires des réseaux de surface et ferré du quatrième
   trimestre 2025, période confirmée par le bilan de couverture des estimations ;
 - le raster d'éclairage nocturne préparé par l'équipe (`luminosite_log.tif`, déjà en échelle
-  logarithmique, maille de 130 m) ; sa source amont et son unité physique restent à documenter ;
+  logarithmique, maille de 130 m), issu de la radiance nocturne LuoJia 2018
+  (voir les [sources et crédits](docs/a-propos.md#donnees-et-credits)) ; son unité physique reste à documenter ;
 - le raster de contexte de densité `PresenceHum_IDF_OK.tif` préparé par Victoria
   (maille de 100 m, Lambert 93), converti par `1 - valeur / 100` : 0 brut est favorable,
   100 brut défavorable selon la convention fournie. Sa construction amont reste à documenter ;
@@ -150,7 +157,7 @@ estimations de fréquentation aux observations et aux ressentis, de proposer des
 trajets jugés peu plausibles et d'implémenter le rapport par scénario. Les seuils, les pondérations
 et les choix de visualisation doivent être discutés avec les usagers et les partenaires.
 
-## Installation et utilisation
+## Installation
 
 ### Prérequis
 
@@ -158,9 +165,9 @@ et les choix de visualisation doivent être discutés avec les usagers et les pa
 - [uv](https://docs.astral.sh/uv/) et Python 3.14 ;
 - Node.js 20.x à partir de 20.19, ou 22.12+, et npm pour le frontend.
 
-### Démarrer l'application
+### Installer le projet
 
-Depuis la branche contenant cette version du prototype :
+Installer le code et les dépendances depuis un terminal :
 
 ```text
 git clone https://github.com/setec-labs/hackaviz-2026.git
@@ -172,8 +179,18 @@ uv sync --all-packages
 cd frontend
 npm ci
 cd ..
+```
+
+## Lancer l'application
+
+**Après l'installation, une seule commande depuis la racine du dépôt :**
+
+```bash
 uv run python scripts/run_services.py
 ```
+
+Cette commande prépare les scénarios puis démarre **routing, safety et le frontend**.
+Il n'est pas nécessaire de lancer chaque service séparément.
 
 Ouvrir ensuite <http://localhost:5173>. Les API sont également disponibles sur
 <http://localhost:8001/docs> (routing) et <http://localhost:8002/docs> (safety). Arrêter les services
@@ -185,7 +202,7 @@ développement, consulter [CONTRIBUTING.md](CONTRIBUTING.md).
 Les [captures de l'interface](docs/utilisateur/carte.md) situent le scénario, la pondération
 des trois indicateurs et les commandes de simulation et de son.
 
-### Recalculer les scénarios et les estimations de fréquentation
+## Recalculer les scénarios et les estimations de fréquentation
 
 Cette étape n'est pas nécessaire pour consulter les scénarios déjà versionnés. Les fichiers d'entrée
 requis et les options sont décrits dans les README des services
