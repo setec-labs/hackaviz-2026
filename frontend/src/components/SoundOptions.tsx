@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ambientLoopUrl from "../assets/ambient-loop.wav?url";
 import type { ArrivalChime } from "../audio/arrivalChime";
+import { startAmbientPlayback } from "../audio/ambientPlayback";
 
 /** Control ambient audio and optional arrival chimes, including autoplay failures. */
 export function SoundOptions({ chime }: { chime?: ArrivalChime }) {
@@ -25,19 +26,11 @@ export function SoundOptions({ chime }: { chime?: ArrivalChime }) {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    let cancelled = false;
-    void audio.play().catch((cause: unknown) => {
-      if (cancelled) return;
-      if (cause instanceof DOMException && cause.name === "NotAllowedError") {
-        setAutoplayBlocked(true);
-      } else {
-        setError("Impossible de lire l'ambiance sonore. Réessayez.");
-      }
-    });
-    return () => {
-      cancelled = true;
-      audio.pause();
-    };
+    return startAmbientPlayback(
+      audio, window,
+      () => setAutoplayBlocked(true),
+      () => setError("Impossible de lire l'ambiance sonore. Réessayez."),
+    );
   }, []);
 
   const toggleSound = async () => {
@@ -84,6 +77,7 @@ export function SoundOptions({ chime }: { chime?: ArrivalChime }) {
         />
         <button
           type="button"
+          data-sound-toggle
           aria-pressed={isPlaying}
           disabled={isStarting}
           onClick={() => void toggleSound()}
@@ -120,7 +114,8 @@ export function SoundOptions({ chime }: { chime?: ArrivalChime }) {
         )}
         {autoplayBlocked && (
           <p role="status" className="w-full text-ink-muted">
-            Le navigateur bloque la lecture automatique. Cliquez sur « Activer l'ambiance sonore ».
+            Le navigateur bloque la lecture automatique. Le son démarrera à votre première
+            interaction, ou via « Activer l'ambiance sonore ».
           </p>
         )}
         {error && <p role="alert" className="w-full text-vigilance">{error}</p>}

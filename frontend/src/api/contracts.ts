@@ -74,3 +74,21 @@ export interface SafetyIndexDto extends GeoPointDto {
 export interface SafetyIndexResponseDto {
   indices: SafetyIndexDto[];
 }
+
+/** Configured indicator weights, finite and nonnegative, summing to one. */
+export interface SafetyWeights {
+  lighting: number;
+  ridership: number;
+  population_density: number;
+}
+
+export interface JourneySafetyRequestDto {
+  journeys: JourneyDto[];
+  weights: SafetyWeights;
+}
+
+export interface JourneySafetyResultDto {
+  journey_id: string;
+  values: (number | null)[];
+  score: number | null;
+}

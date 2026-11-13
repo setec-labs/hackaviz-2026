@@ -1,5 +1,10 @@
 from math import fsum
 
+from hackaviz_2026.journey_safety import (
+    JourneySafetyRequest,
+    JourneySafetyResponse,
+    JourneySafetyResult,
+)
 from hackaviz_2026.models import (
     EvaluateResponse,
     Indicator,
@@ -10,8 +15,10 @@ from hackaviz_2026.models import (
     ScoreResponse,
     SafetyIndexResponse,
 )
+from hackaviz_2026.routing import Journey, JourneyLeg
 
 from safety.providers import IndicatorProvider, IndicatorUnavailableError
+from safety.ridership import RidershipIndicatorProvider
 
 
 class UnknownIndicatorError(ValueError):
@@ -25,19 +32,30 @@ class IndicatorNotImplementedError(RuntimeError):
 class IndicatorService:
     """Evaluate registered providers and aggregate their normalized scores."""
 
-    def __init__(self, providers: tuple[IndicatorProvider, ...]) -> None:
+    def __init__(
+        self,
+        providers: tuple[IndicatorProvider, ...],
+        ridership: RidershipIndicatorProvider | None = None,
+    ) -> None:
         if not providers:
             raise ValueError("At least one indicator provider is required")
         self._providers = {provider.id: provider for provider in providers}
         if len(self._providers) != len(providers):
             raise ValueError("Indicator provider IDs must be unique")
+        self._ridership = ridership
 
     def list_indicators(self) -> list[Indicator]:
         """Return metadata for registered indicators in provider order."""
-        return [
+        metadata = [
             Indicator(id=provider.id, name=provider.name, description=provider.description)
             for provider in self._providers.values()
         ]
+        if self._ridership is not None:
+            metadata.append(Indicator(
+                id=self._ridership.id, name=self._ridership.name,
+                description=self._ridership.description,
+            ))
+        return metadata
 
     async def _evaluate(
         self, position: Position, providers: list[IndicatorProvider]
@@ -82,7 +100,10 @@ class IndicatorService:
             if weight.indicator_id not in self._providers
         ]
         if unknown:
-            raise UnknownIndicatorError(f"Unknown indicator IDs: {', '.join(unknown)}")
+            raise UnknownIndicatorError(
+                f"Unknown position indicator IDs: {', '.join(unknown)}. "
+                "Use /journey-safety for contextual transit indicators."
+            )
         providers = [self._providers[weight.indicator_id] for weight in weights]
         indicators = await self._evaluate(request.position, providers)
         max_weight = max(weight.weight for weight in weights)
@@ -119,3 +140,98 @@ class IndicatorService:
                 value=value,
             ))
         return SafetyIndexResponse(indices=indices)
+
+    async def _leg_values(
+        self, journey: Journey, leg: JourneyLeg, indicator_id: str,
+    ) -> list[float | None]:
+        start, end = leg.point_range
+        if indicator_id == "ridership":
+            if self._ridership is None:
+                raise IndicatorNotImplementedError("Ridership provider is not configured")
+            try:
+                return [await self._ridership.evaluate_arc(leg)] * (end - start)
+            except IndicatorUnavailableError:
+                return [None] * (end - start)
+        provider = self._providers.get(indicator_id)
+        if provider is None:
+            raise IndicatorNotImplementedError(f"Indicator '{indicator_id}' is not configured")
+        values = []
+        for longitude, latitude in journey.coordinates[start:end]:
+            try:
+                result = await self._evaluate(
+                    Position(longitude=longitude, latitude=latitude), [provider],
+                )
+                values.append(result[0].value)
+            except IndicatorUnavailableError:
+                values.append(None)
+        return values
+
+    async def journey_safety(self, request: JourneySafetyRequest) -> JourneySafetyResponse:
+        """Keep local indicators distinct and combine duration means at journey level."""
+        results = []
+        for journey in request.journeys:
+            values: list[float | None] = [None] * len(journey.coordinates)
+            totals: dict[str, list[tuple[float, float]]] = {
+                "lighting": [], "ridership": [], "population_density": [],
+            }
+            missing: set[str] = set()
+            applicable: set[str] = set()
+            for leg in journey.legs:
+                indicator_ids = ["ridership"] if leg.mode == "transit" else ["lighting"]
+                if leg.mode != "transit" and (
+                    "population_density" in self._providers or request.weights.population_density > 0
+                ):
+                    indicator_ids.append("population_density")
+                duration = (leg.end_time - leg.start_time).total_seconds()
+                if duration > 0:
+                    applicable.update(indicator_ids)
+                start, end = leg.point_range
+                components = {
+                    key: await self._leg_values(journey, leg, key) for key in indicator_ids
+                }
+                values[start:end] = [
+                    None if any(value is None for value in point_values) else
+                    fsum(value for value in point_values if value is not None) / len(point_values)
+                    for point_values in zip(*components.values(), strict=True)
+                ]
+                if duration <= 0:
+                    continue
+                # Integrate the sampled field in time, extending endpoint values to leg boundaries.
+                offset_start = (leg.start_time - journey.start_time).total_seconds()
+                times = [0.0] + [
+                    min(duration, max(0.0, offset - offset_start))
+                    for offset in journey.offsets_s[start:end]
+                ] + [duration]
+                intervals = [right - left for left, right in zip(times, times[1:])]
+                for key, leg_values in components.items():
+                    if any(value is None for value in leg_values):
+                        missing.add(key)
+                        continue
+                    known = [value for value in leg_values if value is not None]
+                    samples = [known[0], *known, known[-1]]
+                    mean = fsum(
+                        interval * ((a + b) / 2)
+                        for interval, a, b in zip(intervals, samples, samples[1:])
+                    ) / fsum(intervals)
+                    totals[key].append((mean, duration))
+            indicators = [
+                IndicatorResult(
+                    indicator_id=key,
+                    value=fsum(value * duration for value, duration in parts)
+                    / fsum(duration for _, duration in parts),
+                )
+                for key, parts in totals.items() if parts and key not in missing
+            ]
+            weights = request.weights.model_dump()
+            active = [key for key in applicable if weights[key] > 0]
+            weight_sum = fsum(weights[key] for key in active)
+            score = None
+            if weight_sum and not missing.intersection(active):
+                score = fsum(
+                    indicator.value * weights[indicator.indicator_id]
+                    for indicator in indicators
+                ) / weight_sum
+            results.append(JourneySafetyResult(
+                journey_id=journey.journey_id, values=values, score=score, indicators=indicators,
+            ))
+        return JourneySafetyResponse(journeys=results, weights=request.weights)

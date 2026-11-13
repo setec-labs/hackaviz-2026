@@ -2,7 +2,7 @@
 icon: lucide/moon-star
 ---
 
-# Trajets de nuit en Île-de-France
+# Noctambulle · Trajets de nuit en Île-de-France
 
 !!! warning "Prototype de hackathon"
     Cette solution a été **développée en deux semaines** par une équipe setec dans le cadre du
@@ -15,16 +15,20 @@ icon: lucide/moon-star
 La nuit, un trajet ne se résume pas à sa durée. Attendre un bus de nuit sous un abri mal éclairé ou
 marcher vingt minutes dans une rue déserte influence la façon dont le trajet est **vécu**.
 
-Le prototype propose une **cartographie animée** des trajets de nuit en transports en commun en
+Noctambulle propose une **cartographie animée** des trajets de nuit en transports en commun en
 Île-de-France. Il permet d'explorer, pour un lieu et une heure de départ donnés :
 
 - **le temps de parcours** vers chaque commune francilienne ;
 - **l'accessibilité** : marche, attente, correspondances, et trajets si longs qu'ils deviennent
   irréalistes ;
-- **l'environnement nocturne** traversé à pied ou en attente, à travers un indicateur d'éclairage ;
+- **le contexte du trajet** : éclairage et densité à pied/en attente, fréquentation estimée en transport ;
 - **le volume de population** concerné à l'arrivée.
 
 ![Carte des trajets de nuit au départ de Pigalle à 2 h](assets/carte.png)
+
+L'[interface actuelle](utilisateur/carte.md) propose un panneau de pondération
+pour combiner les trois indicateurs. Les captures détaillées montrent les commandes
+de scénario, de simulation et de son.
 
 !!! info "Un indicateur n'est pas une mesure du danger"
     L'indice affiché est un **indicateur pouvant contribuer au sentiment de sécurité**. Un faible

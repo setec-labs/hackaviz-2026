@@ -17,8 +17,10 @@ flowchart LR
     D --> E[Score entre 0 et 1]
 ```
 
-L'**indice** affiché sur la carte est la moyenne, à poids égaux, des scores disponibles. Aujourd'hui, seul
-l'éclairage est implémenté : l'indice est donc égal au score d'éclairage.
+L'**indice local** représente les indicateurs applicables au tronçon : moyenne à poids égaux
+éclairage/densité à pied/en attente, fréquentation estimée en transport.
+Le **score global** combine les trois indicateurs par une moyenne
+pondérée configurable. Ce sont deux niveaux de lecture distincts.
 
 ## Éclairage nocturne
 
@@ -27,29 +29,66 @@ l'éclairage est implémenté : l'indice est donc égal au score d'éclairage.
 | Source | raster de luminosité nocturne préparé par l'équipe |
 | Résolution | maille de 130 m, Lambert 93 (EPSG:2154) |
 | Valeurs | de 0 à 100, déjà en **échelle logarithmique** |
-| Normalisation | `score = valeur / 100` |
+| Normalisation | `score = 0` si `valeur < 50`, sinon `valeur / 100` |
 
-Exemples : Châtelet ≈ 0,80 ; bois de Vincennes ≈ 0,18.
+Exemples : Châtelet ≈ 0,80 ; bois de Vincennes = 0 (valeur brute ≈ 18).
 
 **Pourquoi une échelle logarithmique ?** La première version utilisait la luminosité en échelle linéaire.
 Quelques zones très éclairées (centre de Paris, grands axes) écrasaient l'échelle et presque toute la
 région apparaissait défavorable. La perception de la lumière étant elle-même plutôt logarithmique, le
-raster a été refait en échelle log. Le service applique ensuite une simple division, pour ne pas appliquer
-le logarithme deux fois.
+raster a été refait en échelle log. Le service ne réapplique pas de logarithme.
+
+**Pourquoi un seuil à 50 % ?** Une faible luminosité conserve un score nul pour accentuer le contraste,
+notamment en dehors de Paris. Les valeurs strictement inférieures à 50 donnent 0 ; à partir de 50
+inclus, le score reste la valeur divisée par 100 (50 donne 0,5). Ce seuil est un choix de modélisation
+sur l'échelle du raster, pas une mesure physique ni une preuve qu'un lieu est dangereux.
 
 **Hors couverture** : une position hors du raster ou sans donnée n'a pas de score et s'affiche « non
 disponible ».
 
+## Densité de population
+
+Le raster `PresenceHum_IDF_OK.tif` préparé par Victoria est en Lambert 93 (EPSG:2154),
+avec une maille de 100 m. C'est un indice préparé dans `[0, 100]`, pas une densité
+en habitants/km² : selon la convention fournie, **0 brut est favorable et 100 brut défavorable**.
+Le score vaut **`1 - valeur / 100`**, sans seuil ni nouveau logarithme.
+La construction amont reste à documenter. Cet indicateur ne mesure pas les personnes
+effectivement présentes la nuit et ne prouve pas qu'un lieu est sûr ou dangereux.
+Hors couverture ou sans donnée, il reste indisponible.
+
 ## Portions évaluées
 
-L'indice n'est demandé **que sur les portions à pied et d'attente** (marche d'accès, correspondance,
-marche finale ou directe, attente). C'est là que la personne est exposée à son environnement.
+L'éclairage et la densité s'appliquent aux portions à pied et d'attente (marche d'accès, correspondance,
+marche finale ou directe, attente).
 
-Dans un véhicule, la valeur est fixée provisoirement à **0,5**, une valeur neutre.
+En transport, l'indice utilise le champ `estimated_validations_per_service_adjusted` du fichier
+`data/output/ridership/ridership_by_transit_arc.csv`. Ce champ est déjà un score inversé de 0 à 100 :
+100 représente la fréquentation estimée la plus faible. Safety calcule donc **`1 − valeur / 100`**.
+Une fréquentation plus élevée est considérée ici comme plus favorable : c'est une hypothèse,
+pas une mesure objective de sécurité ni une mesure d'occupation des véhicules.
 
-!!! todo "À faire"
-    Évaluer le sentiment de sécurité **à bord** avec d'autres indicateurs (affluence, type de véhicule,
-    présence de personnel…) plutôt que la valeur provisoire de 0,5.
+L'arc est identifié par le trajet GTFS, les deux arrêts et les instants de début/fin. Un arc inconnu
+reste sans donnée ; aucun rapprochement géographique ni remplacement par 0,5 n'est effectué.
+Les estimations incluent des imputations documentées dans `services/ridership/README.md`.
+
+## Score global pondéré
+
+Chaque indicateur est moyenné dans le temps sur ses portions applicables. Les deux rasters entre sommets
+sont interpolés linéairement, avec prolongement des valeurs aux limites de chaque tronçon.
+La fréquentation est constante sur un arc. Ces moyennes sont ensuite combinées :
+
+`score = poids_éclairage × moyenne_éclairage + poids_fréquentation × moyenne_fréquentation + poids_densité × moyenne_densité`
+
+Les poids totalisent 1. Le panneau propose faible (rouge, importance 1), normale (gris, 2) et forte
+(vert, 3). Les importances sont divisées par leur somme : faible/faible/forte donne
+20 %/20 %/60 %, normale/normale/normale donne un tiers chacun.
+Ces couleurs représentent une préférence, jamais un niveau de danger.
+
+Un indicateur sans portion applicable est exclu et les poids restants sont renormalisés.
+Une donnée attendue mais manquante rend le score global indisponible si son poids est positif.
+Sans durée positive ni poids applicable, le score est indisponible.
+Les poids sont transmis à l'API, qui calcule le score ; le frontend ne recalcule pas les indicateurs.
+Les couleurs locales ne changent pas avec les poids ; les bulles d'arrivée représentent le score global.
 
 ## Seuils de lecture
 
@@ -64,8 +103,8 @@ La légende découpe l'indice en quatre niveaux. Ce sont des **choix de visualis
 
 ## Anxiété des 10 pires minutes
 
-La couleur d'une bulle d'arrivée résume **tout le trajet** en une valeur : l'anxiété de ses **10 minutes
-les plus défavorables**, consécutives ou non.
+L'infobulle conserve une lecture complémentaire : l'anxiété des **10 minutes les plus défavorables**,
+consécutives ou non. Ce détail, distinct du score global pondéré, ne pilote plus la couleur des bulles.
 
 1. Le trajet est échantillonné toutes les 15 secondes.
 2. Les 40 échantillons les plus défavorables (10 minutes) sont retenus, où qu'ils soient sur le trajet.

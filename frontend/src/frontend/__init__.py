@@ -1,2 +1,2 @@
 def main() -> None:
-    print("Hello from frontend!")
+    print("Hello from Noctambulle frontend!")

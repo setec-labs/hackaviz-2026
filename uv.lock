@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.14"
 resolution-markers = [
     "sys_platform == 'win32'",
@@ -104,7 +104,7 @@ wheels = [
 
 [[package]]
 name = "frontend"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "frontend" }
 
 [[package]]
@@ -135,7 +135,7 @@ wheels = [
 
 [[package]]
 name = "hackaviz-2026"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
@@ -684,7 +684,7 @@ wheels = [
 
 [[package]]
 name = "routing"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "services/routing" }
 dependencies = [
     { name = "fastapi" },
@@ -727,7 +727,7 @@ dev = [{ name = "httpx", specifier = ">=0.28.1" }]
 
 [[package]]
 name = "safety"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "services/safety" }
 dependencies = [
     { name = "fastapi" },

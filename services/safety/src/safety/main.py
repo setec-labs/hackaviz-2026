@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from hackaviz_2026.api import ErrorResponse, ValidationErrorResponse, ValidationIssue
+from hackaviz_2026.journey_safety import JourneySafetyRequest, JourneySafetyResponse
 from hackaviz_2026.models import (
     EvaluateRequest,
     EvaluateResponse,
@@ -19,7 +20,12 @@ from hackaviz_2026.models import (
     ScoreResponse,
 )
 from safety.lighting import DEFAULT_LIGHTING_RASTER, LightingIndicatorProvider
+from safety.population_density import (
+    DEFAULT_POPULATION_DENSITY_RASTER,
+    PopulationDensityIndicatorProvider,
+)
 from safety.providers import IndicatorDataError, IndicatorUnavailableError
+from safety.ridership import DEFAULT_RIDERSHIP_CSV, RidershipIndicatorProvider
 from safety.service import IndicatorNotImplementedError, IndicatorService, UnknownIndicatorError
 
 
@@ -43,7 +49,8 @@ def _cors_origins() -> list[str]:
 
 
 app = FastAPI(
-    title="Safety indicators",
+    title="Noctambulle - Safety indicators",
+    version="1.0.0",
     responses={422: {"model": ValidationErrorResponse}},
 )
 app.add_middleware(
@@ -56,9 +63,16 @@ app.add_middleware(
 
 @lru_cache(maxsize=1)
 def get_indicator_service() -> IndicatorService:
-    """Create and cache the service with its configured lighting provider."""
+    """Create and cache the position and contextual providers."""
     raster_path = _read_path_setting("SAFETY_LIGHTING_RASTER", DEFAULT_LIGHTING_RASTER)
-    return IndicatorService((LightingIndicatorProvider(raster_path),))
+    ridership_path = _read_path_setting("SAFETY_RIDERSHIP_CSV", DEFAULT_RIDERSHIP_CSV)
+    density_path = _read_path_setting(
+        "SAFETY_POPULATION_DENSITY_RASTER", DEFAULT_POPULATION_DENSITY_RASTER,
+    )
+    return IndicatorService(
+        (LightingIndicatorProvider(raster_path), PopulationDensityIndicatorProvider(density_path)),
+        RidershipIndicatorProvider(ridership_path),
+    )
 
 
 Service = Annotated[IndicatorService, Depends(get_indicator_service)]
@@ -148,3 +162,13 @@ async def score(request: ScoreRequest, service: Service) -> ScoreResponse:
 async def safety_index(request: SafetyIndexRequest, service: Service) -> SafetyIndexResponse:
     """Calculate one equal-weight index per requested position."""
     return await service.safety_index(request.points)
+
+
+@app.post(
+    "/journey-safety",
+    response_model=JourneySafetyResponse,
+    responses={501: {"model": ErrorResponse}, 503: {"model": ErrorResponse}},
+)
+async def journey_safety(request: JourneySafetyRequest, service: Service) -> JourneySafetyResponse:
+    """Evaluate local contexts and a configurable weighted global score per journey."""
+    return await service.journey_safety(request)

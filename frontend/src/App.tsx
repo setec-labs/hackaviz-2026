@@ -4,6 +4,7 @@ import arrivalChimeUrl from "./assets/arrival-chime.wav?url";
 import { ArrivalChime } from "./audio/arrivalChime";
 import { ControlPanel } from "./components/ControlPanel";
 import { Legend } from "./components/Legend";
+import { DEFAULT_PREFERENCES, IndicatorWeights, toSafetyWeights } from "./components/IndicatorWeights";
 import { ScenarioPicker } from "./components/ScenarioPicker";
 import { StatusOverlay } from "./components/StatusOverlay";
 import { loadConfig } from "./config";
@@ -27,7 +28,9 @@ export function App() {
     scenarios.find((scenario) => scenario.id === requestedScenarioId) ?? scenarios[0] ?? null;
   const selectedScenarioId = selectedScenario?.id ?? null;
   const [mapError, setMapError] = useState<string | null>(null);
-  const data = useTripData(clients, selectedScenarioId);
+  const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
+  const weights = useMemo(() => toSafetyWeights(preferences), [preferences]);
+  const data = useTripData(clients, selectedScenarioId, weights);
   const dataset = data.status === "success" ? data.dataset : null;
 
   useEffect(() => () => clock.pause(), [clock]);
@@ -81,7 +84,7 @@ export function App() {
         <header className="flex items-start justify-between gap-3">
           <div className="pointer-events-auto max-w-sm rounded-xl border border-surface-raised/70 bg-surface/80 px-3 py-2 shadow-xl shadow-night/60 backdrop-blur-md">
             <h1 className="text-sm font-semibold tracking-wide">
-              Trajets de nuit <span className="text-trip">·</span> Île-de-France
+              Noctambulle <span className="text-trip">·</span> Île-de-France
             </h1>
             <p className="mt-0.5 text-xs text-ink-muted">
               {simulatedLabel && (
@@ -99,7 +102,8 @@ export function App() {
               />
             )}
           </div>
-          <div className="mr-11">
+          <div className="pointer-events-auto mr-11 flex max-h-[calc(100vh-19rem)] flex-col gap-2 overflow-y-auto">
+            <IndicatorWeights preferences={preferences} onChange={setPreferences} />
             <Legend safetySimulated={clients.safetySimulated} />
           </div>
         </header>
@@ -108,7 +112,7 @@ export function App() {
           {mapError && <Notice>{mapError}</Notice>}
           {data.status === "success" && data.safetyError && (
             <Notice>
-              Indicateur de sentiment de sécurité indisponible : les tronçons à pied et d'attente sont affichés en « non disponible ».
+              Indicateurs indisponibles : les trajets et leurs scores sont affichés en « non disponible ».
             </Notice>
           )}
           <ControlPanel clock={clock} dataset={dataset} chime={chime} />

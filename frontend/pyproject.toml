@@ -1,7 +1,7 @@
 [project]
 name = "frontend"
-version = "0.1.0"
-description = "Add your description here"
+version = "1.0.0"
+description = "Interface de visualisation des trajets nocturnes de Noctambulle."
 readme = "README.md"
 authors = [
     { name = "Florian Dufour", email = "florian.dufour@setec.com" }

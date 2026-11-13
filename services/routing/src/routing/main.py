@@ -16,7 +16,8 @@ from routing.service import ReportNotImplementedError, RoutingService
 
 
 app = FastAPI(
-    title="Routing scenarios",
+    title="Noctambulle - Routing scenarios",
+    version="1.0.0",
     responses={422: {"model": ValidationErrorResponse}},
 )
 

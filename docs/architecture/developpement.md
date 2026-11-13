@@ -37,7 +37,8 @@ d'un service arrête les autres.
 uv run --package safety python -m unittest discover -s services/safety/tests
 uv run --package routing python -m unittest discover -s services/routing/tests
 uv run python -m unittest discover -s scripts/tests
-cd frontend && npm run typecheck && npm test
+uv run --package routing python -m unittest discover -s services/ridership -p "test_*.py"
+cd frontend && npm run typecheck && npm test && npm run build
 ```
 
 ## Documentation
@@ -49,6 +50,20 @@ du fichier `zensical.toml`.
 uv run zensical serve     # aperçu sur http://localhost:8000, rechargé à chaque modification
 uv run zensical build     # site statique dans site/ (non versionné)
 ```
+
+Les noms d'extensions contenant des points sont des clés TOML citées dans `zensical.toml`
+(par exemple `"pymdownx.superfences"`), pas des tables imbriquées.
+Les diagrammes Mermaid sont rendus dans le navigateur avec la bibliothèque chargée
+par le thème depuis un CDN. Sans cet accès Internet, les pages et captures locales
+restent disponibles, mais les diagrammes peuvent ne pas être affichés.
+
+Les captures de l'application sont versionnées dans `docs/assets/interface-*.png`
+et utilisées par le guide utilisateur et la page d'architecture frontend.
+Pour les renouveler, lancer les services, ouvrir un scénario réellement disponible,
+mettre la simulation en pause à un instant lisible, puis capturer la vue générale,
+le panneau de pondération et les options du contrôleur. Ne pas masquer les badges
+« simulé », les erreurs ou les mentions de données indisponibles : documenter le mode
+réellement capturé. Les captures n'ont pas besoin de fichiers de configuration ni de secrets.
 
 ## Intégration continue et publication
 

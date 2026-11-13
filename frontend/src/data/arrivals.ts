@@ -24,6 +24,7 @@ export interface ArrivalSource {
   path: [number, number][];
   timestamps: number[];
   safety: SafetyIndexValue[];
+  globalSafety?: SafetyIndexValue;
   endTime: number;
 }
 
@@ -42,6 +43,8 @@ export interface Arrival {
    * 1 minus this value); null if unavailable or the trip is implausible.
    */
   worstMinutesSafety: SafetyIndexValue;
+  /** Weighted mean of applicable indicator means, computed by the safety service. */
+  globalSafety?: SafetyIndexValue;
   /** Whether the trip exceeds two hours and uses a neutral, hollow bubble. */
   implausible: boolean;
   radiusPx: number;
@@ -138,6 +141,7 @@ export function buildArrivals(trips: ArrivalSource[]): Arrival[] {
     const population = trip.destinationPopulation ?? simulatePopulation(trip.id);
     const implausible = isImplausibleTrip(trip.endTime - (trip.timestamps[0] ?? trip.endTime));
     const worst = implausible ? null : worstMinutesSafety(trip.timestamps, trip.safety);
+    const global = implausible ? null : trip.globalSafety;
     return [{
       id: trip.id,
       destinationName: trip.destinationName,
@@ -146,9 +150,10 @@ export function buildArrivals(trips: ArrivalSource[]): Arrival[] {
       population,
       populationSimulated,
       worstMinutesSafety: worst,
+      globalSafety: global,
       implausible,
       radiusPx: populationRadiusPx(population),
-      color: implausible ? implausibleTripColor() : safetyIndexColor(worst),
+      color: implausible ? implausibleTripColor() : safetyIndexColor(global === undefined ? worst : global),
     }];
   });
   return arrivals.sort((a, b) => a.time - b.time);

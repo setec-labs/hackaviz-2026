@@ -1,4 +1,5 @@
 import type { GeoPoint, SafetyIndexValue, ScenarioSummary, Trip } from "../domain/types";
+import type { JourneySafetyResultDto, SafetyWeights } from "./contracts";
 
 /**
  * Scenario data access implemented by both mock and FastAPI clients.
@@ -17,6 +18,8 @@ export interface SafetyIndexClient {
    * A null value means that an indicator is unavailable at that position.
    */
   fetchSafetyIndices(points: GeoPoint[], signal?: AbortSignal): Promise<SafetyIndexValue[]>;
+  /** Contextual local values and server-computed weighted global scores. */
+  fetchJourneySafety(trips: Trip[], weights: SafetyWeights, signal?: AbortSignal): Promise<JourneySafetyResultDto[]>;
 }
 
 /** Data sources and flags identifying which sources are simulated. */
