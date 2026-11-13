@@ -30,3 +30,11 @@ Le prototype croise trois dimensions sur une même carte :
    doublent l'information portée par la couleur.
 5. **Simple et explicable.** Dans le temps d'un hackathon, une règle simple et documentée vaut mieux qu'un
    modèle opaque. Les seuils retenus sont des choix de visualisation, pas des normes.
+
+## Renoncements
+
+L'exigence d'un code ouvert et libre nous a empêché de mettre en valeur dans le cadre de ce hackathon les différents outils d'analyse et de visualisation métier des données de transport que setec développe depuis deux ans. 
+Ces outils, aux noms proches de la thématique abordée ici, auraient pu apporter d'autres regards sur le sujet.
+Ces outils sont présentés brièvement dans notre page [savoir faire interne](outils.md).
+
+![Exemple de visualisation Constellation des déplacements domicile-travail en Seine-Saint-Denis](../assets/Constellations_1.png)

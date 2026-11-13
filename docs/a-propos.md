@@ -19,7 +19,17 @@ un hackathon de datavisualisation sur les mobilités en Île-de-France, organis�
 | Florian Dufour | services, intégration, visualisation |
 | Victoria Jacob | raster d'éclairage nocturne |
 | Simon Lavoine | pipeline de calcul des itinéraires |
-| Benoit Fontanel | *à compléter* |
+| Benoit Fontanel | coordination technique |
+
+## Conseil scientifique et idéation
+
+| Membre |
+|---|
+| Rémi Stamegna |
+| Edouard Jourdan |
+| Jérôme Palayer |
+| Alexandre Schoepp |
+| Olivier Nau |
 
 ## Données et crédits
 
