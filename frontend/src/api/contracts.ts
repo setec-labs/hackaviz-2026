@@ -79,6 +79,7 @@ export interface SafetyIndexResponseDto {
 export interface SafetyWeights {
   lighting: number;
   ridership: number;
+  population_density: number;
 }
 
 export interface JourneySafetyRequestDto {

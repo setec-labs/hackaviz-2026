@@ -125,7 +125,10 @@ export class MockSafetyIndexClient implements SafetyIndexClient {
       const local = values.slice(cursor, cursor + trip.path.length);
       cursor += trip.path.length;
       // Synthetic components exercise the controls without pretending to model real transit.
-      return { journey_id: trip.id, values: local, score: 0.3 * weights.lighting + 0.7 * weights.ridership };
+      return {
+        journey_id: trip.id, values: local,
+        score: 0.3 * weights.lighting + 0.7 * weights.ridership + 0.5 * weights.population_density,
+      };
     });
   }
 }

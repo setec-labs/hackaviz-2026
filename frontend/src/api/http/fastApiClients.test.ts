@@ -22,7 +22,7 @@ const trip: Trip = {
   ],
 };
 
-const weights = { lighting: 0.25, ridership: 0.75 };
+const weights = { lighting: 0.25, ridership: 0.5, population_density: 0.25 };
 const result = { journey_id: trip.id, values: [0.2, 0.8], score: 0.65 };
 
 afterEach(() => vi.unstubAllGlobals());

@@ -12,7 +12,9 @@ Un indicateur defavorable ne doit jamais etre presente comme une preuve objectiv
 - `src/safety/service.py` : `IndicatorService`, orchestration des providers et calcul du score global.
 - `src/safety/providers.py` : protocole `IndicatorProvider` et erreurs communes des providers
   (`IndicatorUnavailableError`, `IndicatorDataError`).
-- `src/safety/lighting.py` : lecture du raster et `LightingIndicatorProvider`.
+- `src/safety/raster.py` : lecteur GeoTIFF commun, reprojection et couverture.
+- `src/safety/lighting.py` : normalisation et `LightingIndicatorProvider`.
+- `src/safety/population_density.py` : raster `PresenceHum_IDF_OK.tif` et contexte de densite.
 - `src/safety/ridership.py` : CSV de frequentation, `RidershipIndicatorProvider.evaluate_arc`.
 - `src/safety/luminosite_log.tif` : raster d'eclairage en echelle log livre par la branche `victoria`
   (`luminosite.tif`, l'ancienne version lineaire, n'est plus utilise).
@@ -50,8 +52,10 @@ chaque provider applique sa propre normalisation avant de retourner son score.
   client frontend). Les indices sont dans l'ordre des points ; `value` est la moyenne a poids egaux
   de tous les indicateurs, ou `null` si l'un d'eux n'a pas de donnee a cette position.
 - `POST /journey-safety` : route frontend actuelle. Au plus 100 `Journey` et 5 000
-  coordonnees par lot ; `weights.lighting` et `weights.ridership` dans `[0, 1]`, de somme 1
-  (tolerance `1e-9`), 50/50 par defaut. Valeurs locales par sommet et score global pondere.
+  coordonnees par lot ; `weights.lighting`, `weights.ridership`, `weights.population_density`
+  dans `[0, 1]`, de somme 1 (tolerance `1e-9`), un tiers chacun sans `weights`.
+  Les anciens objets de poids sans densite conservent `population_density=0`.
+  Valeurs locales par sommet et score global pondere.
   Les routes de position restent limitees aux providers de position ; la frequentation
   necessite le contexte d'un arc, pas seulement une coordonnee.
 
@@ -163,12 +167,23 @@ avec `SAFETY_CORS_ORIGINS`). Toute evolution de ce contrat doit etre alignee ave
 - `estimated_validations_per_service_adjusted` est deja inverse, dans `[0, 100]`.
   Appliquer `1 - valeur / 100` (plus de frequentation estimee = plus favorable, hypothese).
   Il ne s'agit pas de l'occupation observee des vehicules.
-- Eclairage sur marche/attente ; frequentation sur transport ; aucune valeur neutre inventee.
+- Eclairage et densite sur marche/attente ; frequentation sur transport ; aucune valeur neutre inventee.
+- Indice local pieton : moyenne a poids egaux eclairage/densite, `null` si une donnee manque.
 - Moyenne temporelle par indicateur, puis moyenne selon les poids configures.
   Les indicateurs sans portion applicable sont exclus avec renormalisation des poids.
   Une donnee attendue manquante rend le score global `null` si son poids est positif.
   Les valeurs locales restent evaluees, meme avec un poids nul ; une source illisible reste une 503.
 - Les bulles utilisent le score global ; les couleurs locales ne dependent pas des poids.
+
+## Indicateur `population_density`
+
+- Source `PresenceHum_IDF_OK.tif` livree par Victoria : EPSG:2154, maille de 100 m.
+- Chemin configurable par `SAFETY_POPULATION_DENSITY_RASTER`, chargement paresseux unique.
+- Indice brut prepare de 0 (favorable) a 100 (defavorable) : appliquer `1 - valeur / 100`,
+  sans seuil ni nouveau logarithme. Ne pas traiter la valeur brute comme des habitants/km2.
+- Meme gestion de couverture et d'erreurs que l'eclairage, via `IndicatorRaster`.
+- Aucun calcul sur les portions en transport. Ce contexte ne mesure pas la presence nocturne
+  observee ; la construction amont reste a documenter.
 
 ## Validation
 

@@ -20,6 +20,10 @@ from hackaviz_2026.models import (
     ScoreResponse,
 )
 from safety.lighting import DEFAULT_LIGHTING_RASTER, LightingIndicatorProvider
+from safety.population_density import (
+    DEFAULT_POPULATION_DENSITY_RASTER,
+    PopulationDensityIndicatorProvider,
+)
 from safety.providers import IndicatorDataError, IndicatorUnavailableError
 from safety.ridership import DEFAULT_RIDERSHIP_CSV, RidershipIndicatorProvider
 from safety.service import IndicatorNotImplementedError, IndicatorService, UnknownIndicatorError
@@ -61,8 +65,12 @@ def get_indicator_service() -> IndicatorService:
     """Create and cache the position and contextual providers."""
     raster_path = _read_path_setting("SAFETY_LIGHTING_RASTER", DEFAULT_LIGHTING_RASTER)
     ridership_path = _read_path_setting("SAFETY_RIDERSHIP_CSV", DEFAULT_RIDERSHIP_CSV)
+    density_path = _read_path_setting(
+        "SAFETY_POPULATION_DENSITY_RASTER", DEFAULT_POPULATION_DENSITY_RASTER,
+    )
     return IndicatorService(
-        (LightingIndicatorProvider(raster_path),), RidershipIndicatorProvider(ridership_path),
+        (LightingIndicatorProvider(raster_path), PopulationDensityIndicatorProvider(density_path)),
+        RidershipIndicatorProvider(ridership_path),
     )
 
 

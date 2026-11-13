@@ -17,7 +17,7 @@ from safety.main import app, get_indicator_service
 from safety.providers import IndicatorDataError, IndicatorUnavailableError
 from safety.ridership import DEFAULT_RIDERSHIP_CSV, RidershipIndicatorProvider, normalize_ridership
 from safety.service import IndicatorService
-from test_api import FixedProvider
+from test_api import FailingProvider, FixedProvider
 
 
 def journey() -> dict:
@@ -121,7 +121,9 @@ class JourneySafetyApiTests(RidershipFixture, unittest.TestCase):
         app.dependency_overrides[get_indicator_service] = lambda: self.service
 
     def post(self, payload: dict) -> Response:
-        return self.client.post("/journey-safety", json=payload)
+        return self.client.post("/journey-safety", json={
+            "weights": {"lighting": 0.5, "ridership": 0.5}, **payload,
+        })
 
     def test_weight_changes_global_score_not_local_values(self) -> None:
         for weights, expected in [
@@ -132,10 +134,68 @@ class JourneySafetyApiTests(RidershipFixture, unittest.TestCase):
             with self.subTest(weights=weights):
                 response = self.post({"journeys": [journey()], "weights": weights})
                 self.assertEqual(response.status_code, 200, response.text)
-                self.assertEqual(response.json()["weights"], weights)
+                self.assertEqual(response.json()["weights"], {**weights, "population_density": 0})
                 result = response.json()["journeys"][0]
                 self.assertEqual(result["values"], [0.2, 0.8])
                 self.assertAlmostEqual(result["score"], expected)
+
+    def test_density_overlaps_lighting_and_three_weights_control_only_the_global_score(self) -> None:
+        self.service = IndicatorService((
+            FixedProvider("lighting", 0.2), FixedProvider("population_density", 1),
+        ), RidershipIndicatorProvider(self.path))
+        response = self.client.post("/journey-safety", json={"journeys": [journey()]})
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()["journeys"][0]
+        self.assertEqual(result["values"], [0.6, 0.8])
+        self.assertAlmostEqual(result["score"], 2 / 3)
+        self.assertEqual({item["indicator_id"]: item["value"] for item in result["indicators"]}, {
+            "lighting": 0.2, "ridership": 0.8, "population_density": 1,
+        })
+        self.assertAlmostEqual(sum(response.json()["weights"].values()), 1)
+        waiting = journey()
+        waiting["legs"][0]["mode"] = "wait"
+        response = self.post({
+            "journeys": [waiting],
+            "weights": {"lighting": 0.1, "ridership": 0.2, "population_density": 0.7},
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()["journeys"][0]
+        self.assertEqual(result["values"], [0.6, 0.8])
+        self.assertAlmostEqual(result["score"], 0.88)
+
+    def test_density_missing_data_zero_weight_errors_and_transit_exclusion(self) -> None:
+        self.service = IndicatorService((
+            FixedProvider("lighting", 0.2),
+            FailingProvider("population_density", 0.6, IndicatorUnavailableError("No density")),
+        ), RidershipIndicatorProvider(self.path))
+        data = journey()
+        data["coordinates"][0][0] = -1
+        response = self.post({
+            "journeys": [data],
+            "weights": {"lighting": 0.25, "ridership": 0.25, "population_density": 0.5},
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()["journeys"][0]
+        self.assertEqual(result["values"], [None, 0.8])
+        self.assertIsNone(result["score"])
+        result = self.post({"journeys": [data]}).json()["journeys"][0]
+        self.assertAlmostEqual(result["score"], 0.5)
+        self.assertEqual(result["values"], [None, 0.8])
+        self.service = IndicatorService((
+            FixedProvider("lighting", 0.2),
+            FailingProvider("population_density", 0.6, IndicatorDataError("Invalid density")),
+        ), RidershipIndicatorProvider(self.path))
+        self.assertEqual(self.post({"journeys": [data]}).status_code, 503)
+        data["coordinates"] = [[-1, 48.9]]
+        data["start_time"] = data["legs"][1]["start_time"]
+        data["offsets_s"] = [0]
+        data["legs"] = [{**data["legs"][1], "point_range": [0, 1]}]
+        response = self.client.post("/journey-safety", json={"journeys": [data]})
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()["journeys"][0]
+        self.assertEqual(result["values"], [0.8])
+        self.assertAlmostEqual(result["score"], 0.8)
+        self.assertEqual(result["indicators"], [{"indicator_id": "ridership", "value": 0.8}])
 
     def test_missing_expected_data_is_null_and_inapplicable_is_not_missing(self) -> None:
         data = journey()
@@ -202,12 +262,16 @@ class JourneySafetyApiTests(RidershipFixture, unittest.TestCase):
         for weights in [
             {"lighting": 0.2, "ridership": 0.2}, {"lighting": 0, "ridership": 0},
             {"lighting": -1, "ridership": 2}, {"lighting": 1, "ridership": 0, "unknown": 1},
+            {"lighting": 0.25, "ridership": 0.25, "population_density": 0.25},
+            {"lighting": 0.5, "ridership": 1, "population_density": -0.5},
         ]:
             with self.subTest(weights=weights):
                 self.assertEqual(self.post({"journeys": [journey()], "weights": weights}).status_code, 422)
         for value in (math.nan, math.inf):
             with self.assertRaises(ValidationError):
                 SafetyWeights(lighting=value, ridership=0)
+            with self.assertRaises(ValidationError):
+                SafetyWeights(lighting=0, ridership=0, population_density=value)
         with self.assertRaises(ValidationError):
             JourneySafetyRequest.model_validate({"journeys": [journey(), journey()]})
         with self.assertRaises(ValidationError):

@@ -16,6 +16,7 @@ from hackaviz_2026.models import Position
 from safety.lighting import (
     DEFAULT_LIGHTING_RASTER,
     LightingIndicatorProvider,
+    LightingRaster,
     normalize_lighting,
 )
 from safety.main import app, get_indicator_service
@@ -116,18 +117,22 @@ class LightingProviderTests(unittest.TestCase):
         get_indicator_service.cache_clear()
         self.addCleanup(get_indicator_service.cache_clear)
         points = [pixel_center(0, 1), pixel_center(1, 0), Position(latitude=0, longitude=0)]
-        with patch.dict(os.environ, {"SAFETY_LIGHTING_RASTER": str(self.raster)}), TestClient(app) as client:
+        with patch.dict(os.environ, {
+            "SAFETY_LIGHTING_RASTER": str(self.raster),
+            "SAFETY_POPULATION_DENSITY_RASTER": str(self.raster),
+        }), TestClient(app) as client:
             response = client.post("/safety-index", json={"points": [p.model_dump() for p in points]})
             evaluate_response = client.post("/evaluate", json={"position": points[2].model_dump()})
         self.assertEqual(response.status_code, 200)
         values = [item["value"] for item in response.json()["indices"]]
-        self.assertEqual(values[0], 0.0)
+        self.assertEqual(values[0], 0.375)
         self.assertEqual(values[1:], [None, None])
         self.assertEqual(evaluate_response.status_code, 404)
 
     def test_api_applies_threshold_to_all_scores(self) -> None:
         get_indicator_service.cache_clear()
         self.addCleanup(get_indicator_service.cache_clear)
+        raster = LightingRaster.open(self.raster)
         cases = [
             (pixel_center(0, 0), 0.0),
             (pixel_center(0, 1), 0.0),
@@ -136,14 +141,20 @@ class LightingProviderTests(unittest.TestCase):
             (pixel_center(2, 2), 0.75),
             (pixel_center(0, 2), 1.0),
         ]
-        with patch.dict(os.environ, {"SAFETY_LIGHTING_RASTER": str(self.raster)}), TestClient(app) as client:
+        with patch.dict(os.environ, {
+            "SAFETY_LIGHTING_RASTER": str(self.raster),
+            "SAFETY_POPULATION_DENSITY_RASTER": str(self.raster),
+        }), TestClient(app) as client:
             response = client.post("/safety-index", json={
                 "points": [position.model_dump() for position, _ in cases],
             })
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json(), {
                 "indices": [
-                    {**position.model_dump(), "value": expected}
+                    {
+                        **position.model_dump(),
+                        "value": (expected + (1 - raster.raw_value(position) / 100)) / 2,
+                    }
                     for position, expected in cases
                 ],
             })
@@ -153,7 +164,10 @@ class LightingProviderTests(unittest.TestCase):
                 with self.subTest(position=position):
                     response = client.post("/evaluate", json=body)
                     self.assertEqual(response.status_code, 200)
-                    self.assertEqual(response.json(), {**body, "indicators": indicators})
+                    density = 1 - raster.raw_value(position) / 100
+                    self.assertEqual(response.json(), {**body, "indicators": [
+                        *indicators, {"indicator_id": "population_density", "value": density},
+                    ]})
                     response = client.post("/score", json={
                         **body, "weights": [{"indicator_id": "lighting", "weight": 1.0}],
                     })

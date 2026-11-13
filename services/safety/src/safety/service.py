@@ -141,18 +141,20 @@ class IndicatorService:
             ))
         return SafetyIndexResponse(indices=indices)
 
-    async def _leg_values(self, journey: Journey, leg: JourneyLeg) -> list[float | None]:
+    async def _leg_values(
+        self, journey: Journey, leg: JourneyLeg, indicator_id: str,
+    ) -> list[float | None]:
         start, end = leg.point_range
-        if leg.mode == "transit":
+        if indicator_id == "ridership":
             if self._ridership is None:
                 raise IndicatorNotImplementedError("Ridership provider is not configured")
             try:
                 return [await self._ridership.evaluate_arc(leg)] * (end - start)
             except IndicatorUnavailableError:
                 return [None] * (end - start)
-        provider = self._providers.get("lighting")
+        provider = self._providers.get(indicator_id)
         if provider is None:
-            raise IndicatorNotImplementedError("Lighting provider is not configured")
+            raise IndicatorNotImplementedError(f"Indicator '{indicator_id}' is not configured")
         values = []
         for longitude, latitude in journey.coordinates[start:end]:
             try:
@@ -169,36 +171,49 @@ class IndicatorService:
         results = []
         for journey in request.journeys:
             values: list[float | None] = [None] * len(journey.coordinates)
-            totals: dict[str, list[tuple[float, float]]] = {"lighting": [], "ridership": []}
+            totals: dict[str, list[tuple[float, float]]] = {
+                "lighting": [], "ridership": [], "population_density": [],
+            }
             missing: set[str] = set()
             applicable: set[str] = set()
             for leg in journey.legs:
-                indicator_id = "ridership" if leg.mode == "transit" else "lighting"
+                indicator_ids = ["ridership"] if leg.mode == "transit" else ["lighting"]
+                if leg.mode != "transit" and (
+                    "population_density" in self._providers or request.weights.population_density > 0
+                ):
+                    indicator_ids.append("population_density")
                 duration = (leg.end_time - leg.start_time).total_seconds()
                 if duration > 0:
-                    applicable.add(indicator_id)
+                    applicable.update(indicator_ids)
                 start, end = leg.point_range
-                leg_values = await self._leg_values(journey, leg)
-                values[start:end] = leg_values
+                components = {
+                    key: await self._leg_values(journey, leg, key) for key in indicator_ids
+                }
+                values[start:end] = [
+                    None if any(value is None for value in point_values) else
+                    fsum(value for value in point_values if value is not None) / len(point_values)
+                    for point_values in zip(*components.values(), strict=True)
+                ]
                 if duration <= 0:
                     continue
-                if any(value is None for value in leg_values):
-                    missing.add(indicator_id)
-                    continue
-                known = [value for value in leg_values if value is not None]
                 # Integrate the sampled field in time, extending endpoint values to leg boundaries.
                 offset_start = (leg.start_time - journey.start_time).total_seconds()
                 times = [0.0] + [
                     min(duration, max(0.0, offset - offset_start))
                     for offset in journey.offsets_s[start:end]
                 ] + [duration]
-                samples = [known[0], *known, known[-1]]
                 intervals = [right - left for left, right in zip(times, times[1:])]
-                mean = fsum(
-                    interval * ((a + b) / 2)
-                    for interval, a, b in zip(intervals, samples, samples[1:])
-                ) / fsum(intervals)
-                totals[indicator_id].append((mean, duration))
+                for key, leg_values in components.items():
+                    if any(value is None for value in leg_values):
+                        missing.add(key)
+                        continue
+                    known = [value for value in leg_values if value is not None]
+                    samples = [known[0], *known, known[-1]]
+                    mean = fsum(
+                        interval * ((a + b) / 2)
+                        for interval, a, b in zip(intervals, samples, samples[1:])
+                    ) / fsum(intervals)
+                    totals[key].append((mean, duration))
             indicators = [
                 IndicatorResult(
                     indicator_id=key,
@@ -207,7 +222,7 @@ class IndicatorService:
                 )
                 for key, parts in totals.items() if parts and key not in missing
             ]
-            weights = {"lighting": request.weights.lighting, "ridership": request.weights.ridership}
+            weights = request.weights.model_dump()
             active = [key for key in applicable if weights[key] > 0]
             weight_sum = fsum(weights[key] for key in active)
             score = None

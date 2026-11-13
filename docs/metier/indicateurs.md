@@ -17,8 +17,9 @@ flowchart LR
     D --> E[Score entre 0 et 1]
 ```
 
-L'**indice local** représente l'indicateur applicable au tronçon : éclairage à pied/en attente,
-fréquentation estimée en transport. Le **score global** combine les deux indicateurs par une moyenne
+L'**indice local** représente les indicateurs applicables au tronçon : moyenne à poids égaux
+éclairage/densité à pied/en attente, fréquentation estimée en transport.
+Le **score global** combine les trois indicateurs par une moyenne
 pondérée configurable. Ce sont deux niveaux de lecture distincts.
 
 ## Éclairage nocturne
@@ -45,9 +46,19 @@ sur l'échelle du raster, pas une mesure physique ni une preuve qu'un lieu est d
 **Hors couverture** : une position hors du raster ou sans donnée n'a pas de score et s'affiche « non
 disponible ».
 
+## Densité de population
+
+Le raster `PresenceHum_IDF_OK.tif` préparé par Victoria est en Lambert 93 (EPSG:2154),
+avec une maille de 100 m. C'est un indice préparé dans `[0, 100]`, pas une densité
+en habitants/km² : selon la convention fournie, **0 brut est favorable et 100 brut défavorable**.
+Le score vaut **`1 - valeur / 100`**, sans seuil ni nouveau logarithme.
+La construction amont reste à documenter. Cet indicateur ne mesure pas les personnes
+effectivement présentes la nuit et ne prouve pas qu'un lieu est sûr ou dangereux.
+Hors couverture ou sans donnée, il reste indisponible.
+
 ## Portions évaluées
 
-L'éclairage s'applique aux portions à pied et d'attente (marche d'accès, correspondance,
+L'éclairage et la densité s'appliquent aux portions à pied et d'attente (marche d'accès, correspondance,
 marche finale ou directe, attente).
 
 En transport, l'indice utilise le champ `estimated_validations_per_service_adjusted` du fichier
@@ -62,15 +73,16 @@ Les estimations incluent des imputations documentées dans `services/ridership/R
 
 ## Score global pondéré
 
-Chaque indicateur est moyenné dans le temps sur ses portions applicables. L'éclairage entre sommets
-est interpolé linéairement, avec prolongement des valeurs aux limites de chaque tronçon.
+Chaque indicateur est moyenné dans le temps sur ses portions applicables. Les deux rasters entre sommets
+sont interpolés linéairement, avec prolongement des valeurs aux limites de chaque tronçon.
 La fréquentation est constante sur un arc. Ces moyennes sont ensuite combinées :
 
-`score = poids_éclairage × moyenne_éclairage + poids_fréquentation × moyenne_fréquentation`
+`score = poids_éclairage × moyenne_éclairage + poids_fréquentation × moyenne_fréquentation + poids_densité × moyenne_densité`
 
 Les poids totalisent 1. Le panneau propose faible (rouge, importance 1), normale (gris, 2) et forte
-(vert, 3). Les importances sont divisées par leur somme : faible/forte donne 25 %/75 %, normale/normale
-donne 50 %/50 %. Ces couleurs représentent une préférence, jamais un niveau de danger.
+(vert, 3). Les importances sont divisées par leur somme : faible/faible/forte donne
+20 %/20 %/60 %, normale/normale/normale donne un tiers chacun.
+Ces couleurs représentent une préférence, jamais un niveau de danger.
 
 Un indicateur sans portion applicable est exclu et les poids restants sont renormalisés.
 Une donnée attendue mais manquante rend le score global indisponible si son poids est positif.

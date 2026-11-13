@@ -6,7 +6,8 @@ sentiment de sécurité.
 
 Par défaut, les **scénarios et leurs trajets proviennent du service routing** (`GET /scenarios`, port 8001)
 et l'**indice provient du service safety** (`POST /journey-safety`, port 8002) :
-éclairage à pied/en attente et fréquentation estimée en transport. Sans service safety, les trajets s'affichent en
+éclairage et densité de population à pied/en attente, fréquentation estimée en transport.
+Sans service safety, les trajets s'affichent en
 « non disponible » ; utiliser `?source=mock&safetySource=mock` pour travailler entièrement sans backend.
 
 > L'indice affiché est un **indicateur**. Il ne mesure pas objectivement le danger d'un lieu. Les valeurs
@@ -96,18 +97,21 @@ Les valeurs par défaut peuvent aussi être définies avec `VITE_DATA_SOURCE`, `
   l'indicateur au point courant.
 - **Contrôleur de simulation** : cliquez sur son titre pour replier ou réafficher le panneau, sans arrêter
   la simulation ni le son.
-- **Pondération du trajet** : pour chaque indicateur, choisir faible (rond rouge, importance 1),
+- **Pondération du trajet** : pour l'éclairage, la fréquentation et la densité de population,
+  choisir faible (rond rouge, importance 1),
   normale (gris, 2) ou forte (vert, 3). Les importances sont normalisées pour que les poids
-  totalisent 100 %, puis transmis à safety. Les bulles d'arrivée et les scores globaux changent,
+  totalisent 100 % (un tiers chacun par défaut), puis transmis à safety.
+  Les pourcentages affichés sont arrondis. Les bulles d'arrivée et les scores globaux changent,
   pas les couleurs locales. Un changement réévalue safety sans recharger les trajets routing.
 - **Options → ambiance sonore** : boucle de 41 secondes, activée au démarrage à 50 % du volume
   (0 % pour couper le son), indépendante de la pause et de la vitesse de simulation.
   Si le navigateur bloque la lecture automatique, « Son en attente » apparaît dans Options :
-  cliquez sur « Activer l'ambiance sonore » pour autoriser la lecture.
+  le son démarre à la première interaction (clic/touche), ou via « Activer l'ambiance sonore ».
+  Une désactivation explicite n'est jamais annulée par les interactions suivantes.
 - **Bulles d'arrivée (constellation)** : à la fin d'un trajet, une bulle lumineuse apparaît à la
   destination avec un anneau qui s'étend, puis reste affichée avec un halo scintillant. Sa **taille** suit
   la population de la zone et sa **couleur** le score global pondéré calculé par safety.
-  Les moyennes temporelles de l'éclairage et de la fréquentation sont combinées selon les poids
+  Les moyennes temporelles de l'éclairage, de la fréquentation et de la densité sont combinées selon les poids
   du panneau. L'anxiété des 10 pires minutes reste un détail de l'infobulle. Chaque bulle est reliée à l'arrivée
   antérieure la plus proche, ce qui dessine une constellation. Le survol affiche la destination, l'heure,
   la population et l'indicateur.
@@ -160,7 +164,7 @@ SafetyIndexClient.fetchJourneySafety(trips, weights) ┘                        
   `src/domain/tripPlausibility.ts`) : pas de requête d'indice, tracé gris neutre atténué, bulle d'arrivée
   creuse sans halo, mention dans l'infobulle et la légende.
 - Les trajets plausibles sont envoyés avec leurs tronçons, identifiants GTFS, arrêts et horaires.
-  Safety applique l'éclairage à pied/en attente et la fréquentation en transport, sans valeur
+  Safety applique la moyenne locale éclairage/densité à pied/en attente et la fréquentation en transport, sans valeur
   neutre inventée. Une donnée attendue manquante reste `null`. Un indicateur sans portion
   applicable est exclu du score global et les poids applicables sont renormalisés.
 
@@ -207,7 +211,7 @@ pour les scénarios (`VITE_DATA_SOURCE` / `?source=`) et pour l'indice (`VITE_SA
 `?safetySource=`). Aucun composant, couche ou hook n'a besoin d'être modifié.
 
 - **Indice (branché)** : `POST {VITE_SAFETY_API_URL}/journey-safety` avec
-  `{ "journeys": [...], "weights": {"lighting": 0.5, "ridership": 0.5} }`.
+  `{ "journeys": [...], "weights": {"lighting": 0.25, "ridership": 0.5, "population_density": 0.25} }`.
   Chaque résultat contient `journey_id`, `values` (par sommet), `score` (global) et `indicators`.
   Les scores sont dans `[0, 1]` ou `null`. Le client valide l'ordre, les identifiants et les tailles.
   Lots de 100 trajets et 5 000 coordonnées au plus, sans découper un trajet ; un trajet dépassant

@@ -5,14 +5,19 @@ export type IndicatorImportance = 1 | 2 | 3;
 export interface IndicatorPreferences {
   lighting: IndicatorImportance;
   ridership: IndicatorImportance;
+  population_density: IndicatorImportance;
 }
 
-export const DEFAULT_PREFERENCES: IndicatorPreferences = { lighting: 2, ridership: 2 };
+export const DEFAULT_PREFERENCES: IndicatorPreferences = {
+  lighting: 2, ridership: 2, population_density: 2,
+};
 
 /** Translate importance choices to relative weights; keep their sum equal to one. */
 export function toSafetyWeights(preferences: IndicatorPreferences): SafetyWeights {
-  const lighting = preferences.lighting / (preferences.lighting + preferences.ridership);
-  return { lighting, ridership: 1 - lighting };
+  const total = preferences.lighting + preferences.ridership + preferences.population_density;
+  const lighting = preferences.lighting / total;
+  const ridership = preferences.ridership / total;
+  return { lighting, ridership, population_density: 1 - (lighting + ridership) };
 }
 
 const choices = [
@@ -31,7 +36,7 @@ export function IndicatorWeights({
 }) {
   const weights = toSafetyWeights(preferences);
   return (
-    <details open className="pointer-events-auto w-64 shrink-0 rounded-xl border border-surface-raised/70 bg-surface/90 text-xs shadow-xl">
+    <details open className="pointer-events-auto w-72 max-w-[calc(100vw-4rem)] shrink-0 rounded-xl border border-surface-raised/70 bg-surface/90 text-xs shadow-xl">
       <summary className="cursor-pointer rounded-xl px-3 py-2 font-semibold focus-visible:outline-2 focus-visible:outline-selection">
         Pondération du trajet
       </summary>
@@ -39,6 +44,7 @@ export function IndicatorWeights({
         {([
           ["lighting", "Éclairage"],
           ["ridership", "Fréquentation"],
+          ["population_density", "Densité de population"],
         ] as const).map(([id, label]) => (
           <fieldset key={id} className="flex items-center justify-between gap-2">
             <legend className="float-left">
@@ -68,7 +74,8 @@ export function IndicatorWeights({
           </fieldset>
         ))}
         <p className="text-[11px] leading-snug text-ink-muted">
-          Rouge = faible, gris = normale, vert = forte. Somme des poids : 100 %.
+          Rouge = faible, gris = normale, vert = forte. Somme des poids : 100 %
+          (pourcentages affichés arrondis).
           Les couleurs locales ne changent pas ; les bulles résument le score pondéré.
         </p>
       </div>

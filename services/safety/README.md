@@ -64,6 +64,8 @@ Variables d'environnement :
   `src/safety/luminosite_log.tif`) ;
 - `SAFETY_RIDERSHIP_CSV` : chemin des estimations par arc (par défaut
   `data/output/ridership/ridership_by_transit_arc.csv`, depuis la racine du dépôt) ;
+- `SAFETY_POPULATION_DENSITY_RASTER` : chemin du raster de contexte de densité
+  (par défaut `src/safety/PresenceHum_IDF_OK.tif`) ;
 - `SAFETY_CORS_ORIGINS` : origines autorisées, séparées par des virgules (par
   défaut `http://localhost:5173,http://127.0.0.1:5173`, le serveur Vite).
 
@@ -71,7 +73,7 @@ Variables d'environnement :
 
 - `GET /indicators` retourne les métadonnées des indicateurs disponibles.
 - `POST /evaluate` reçoit `{"position": {"latitude": 48.8566, "longitude": 2.3522}}`
-  et retourne les indicateurs de position (éclairage). La fréquentation requiert un arc.
+  et retourne les indicateurs de position (éclairage et densité). La fréquentation requiert un arc.
 - `POST /score` reçoit une position et une liste `weights` contenant des objets
   `{"indicator_id": "lighting", "weight": 1.0}`. Il retourne la position,
   les résultats des indicateurs demandés et leur moyenne pondérée.
@@ -81,10 +83,12 @@ Variables d'environnement :
   indicateurs, ou `null` si une donnée manque à cette position. C'est la route
   historique pour les seuls indicateurs de position ; elle reste compatible.
 - `POST /journey-safety` est la route utilisée par le frontend. Elle reçoit
-  `{"journeys": [...], "weights": {"lighting": 0.5, "ridership": 0.5}}`.
+  `{"journeys": [...], "weights": {"lighting": 0.25, "ridership": 0.5, "population_density": 0.25}}`.
   Les trajets utilisent le modèle partagé `Journey` de routing, sans duplication.
   Un lot contient au plus 100 trajets et 5 000 coordonnées. Les poids sont dans
-  `[0, 1]`, de somme 1 (tolérance numérique `1e-9`), avec 50/50 par défaut.
+  `[0, 1]`, de somme 1 (tolérance numérique `1e-9`), avec un tiers chacun lorsque
+  `weights` est absent. Pour les anciens clients fournissant uniquement les deux poids,
+  `population_density` vaut 0 ; `weights: {}` conserve ainsi l'ancien 50/50.
   La réponse contient `journeys` dans l'ordre demandé : `journey_id`, `values`
   (un indice local par coordonnée), `score` (global, ou `null`) et `indicators`
   (moyennes disponibles par indicateur), ainsi que les `weights` configurés.
@@ -95,21 +99,23 @@ Exemple de résultat contextualisé :
 {
   "journeys": [{
     "journey_id": "j1",
-    "values": [0.2, 0.8],
-    "score": 0.65,
+    "values": [0.4, 0.8],
+    "score": 0.6,
     "indicators": [
       {"indicator_id": "lighting", "value": 0.2},
-      {"indicator_id": "ridership", "value": 0.8}
+      {"indicator_id": "ridership", "value": 0.8},
+      {"indicator_id": "population_density", "value": 0.6}
     ]
   }],
-  "weights": {"lighting": 0.25, "ridership": 0.75}
+  "weights": {"lighting": 0.25, "ridership": 0.5, "population_density": 0.25}
 }
 ```
 
-Les couleurs locales utilisent l'éclairage à pied/en attente, et la fréquentation
+Les couleurs locales utilisent la moyenne à poids égaux éclairage/densité à pied/en attente,
+et la fréquentation
 en transport. Pour le score global, les valeurs locales sont intégrées dans le
 temps (interpolation linéaire entre sommets, prolongement aux limites du tronçon),
-puis moyennées par durée pour chaque indicateur. Ces deux moyennes sont combinées
+puis moyennées par durée pour chaque indicateur. Ces trois moyennes sont combinées
 selon les poids configurés. Un indicateur sans portion applicable est exclu et
 les poids restants renormalisés. Une donnée attendue mais manquante rend le score
 global `null` si son poids est positif ; un poids nul ne bloque pas ce score.
@@ -165,6 +171,20 @@ vide, non finie, hors bornes, un schéma invalide ou des doublons contradictoire
 provoquent une erreur 503. Il s'agit de validations estimées par service, **pas
 d'une occupation observée**. Le sens favorable associé à la fréquentation est
 une hypothèse de modélisation, pas une preuve de sécurité.
+
+## Indicateur `population_density`
+
+Source : `src/safety/PresenceHum_IDF_OK.tif`, préparé par Victoria, Lambert 93
+(EPSG:2154), maille de 100 m. La valeur brute est un indice préparé dans `[0, 100]`,
+pas une densité en habitants/km² : selon la convention fournie, 0 est favorable
+et 100 défavorable. Le score vaut **`1 - valeur / 100`**, sans seuil ni nouveau logarithme.
+Il s'applique à la marche et à l'attente, jamais aux portions en transport.
+
+Le lecteur de raster est partagé avec l'éclairage (`raster.py`) ; chaque raster est chargé
+une fois, au premier appel. Hors emprise, nodata ou pixel non fini : donnée indisponible.
+Source absente, illisible, sans CRS ou valeur brute finie hors bornes : erreur 503.
+La construction amont de l'indice reste à documenter : il ne mesure ni les personnes
+effectivement présentes la nuit ni une sécurité objective.
 
 ## Tests
 

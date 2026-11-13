@@ -2,7 +2,7 @@
 
 **Comment se vivent les trajets de nuit en transports en commun en Île-de-France ?** Noctambulle
 est un visualisateur de trajets nocturnes qui met en regard leur durée, les portions à pied ou en
-attente, l'éclairage nocturne et la fréquentation estimée à bord.
+attente, l'éclairage nocturne, la densité de population et la fréquentation estimée à bord.
 
 > **Prototype de hackathon.** Développé par l'équipe setec dans le cadre du
 > [Hackaviz Mobilités 2026](https://github.com/hackathons-mobilites/hackaviz_2026), organisé par
@@ -56,17 +56,20 @@ collectifs et sur **Dijkstra** pour les cheminements piétons. Il recherche l'ar
 possible, plutôt que le trajet le plus court en distance. Les scénarios (lieu × heure de départ)
 sont précalculés, puis animés dans l'interface : ce ne sont pas des déplacements observés en temps réel.
 
-Les indices locaux décrivent deux dimensions :
+Les indices locaux décrivent trois indicateurs :
 
-- **à pied et en attente** : l'éclairage nocturne ;
+- **à pied et en attente** : la moyenne à poids égaux de l'éclairage nocturne et du contexte
+  de densité de population ;
 - **en transport** : la fréquentation estimée à partir des validations et de l'offre programmée,
   ajustée selon la catégorie de véhicule. Ce proxy n'est pas une mesure de charge ni un comptage
   des voyageurs effectivement visibles à bord.
 
 Les scores sont normalisés entre 0 et 1, où 1 indique le contexte le plus favorable selon ces
-hypothèses. Le score global combine les moyennes temporelles de ces deux indicateurs. Le panneau
+hypothèses. Le score global combine les moyennes temporelles de ces trois indicateurs. Le panneau
 rouge/gris/vert règle leur importance (faible/normale/forte), puis normalise les poids pour obtenir
-une somme de 100 %. Les couleurs locales restent propres à chaque tronçon.
+une somme de 100 % (un tiers chacun par défaut). Les couleurs locales restent propres à chaque tronçon.
+La musique est activée par défaut à 50 % ; si le navigateur bloque la lecture automatique,
+elle démarre à la première interaction. Elle peut être coupée dans les options.
 
 À l'arrivée, les bulles représentent la **population de la commune ou de l'arrondissement**, issue
 des données publiques, et non le nombre de voyageurs effectuant ce déplacement. Leur couleur
@@ -85,6 +88,10 @@ Les données mobilisées sont :
   trimestre 2025, période confirmée par le bilan de couverture des estimations ;
 - le raster d'éclairage nocturne préparé par l'équipe (`luminosite_log.tif`, déjà en échelle
   logarithmique, maille de 130 m) ; sa source amont et son unité physique restent à documenter ;
+- le raster de contexte de densité `PresenceHum_IDF_OK.tif` préparé par Victoria
+  (maille de 100 m, Lambert 93), converti par `1 - valeur / 100` : 0 brut est favorable,
+  100 brut défavorable selon la convention fournie. Sa construction amont reste à documenter ;
+  il ne mesure pas la présence humaine observée la nuit ;
 - les populations et positions de mairie des communes et arrondissements via `geo.api.gouv.fr`.
 
 La densité d'équipements générant de l'activité la nuit, à partir des données « amenities »

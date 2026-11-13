@@ -41,7 +41,7 @@ instantanée.
 | Route | Rôle |
 |---|---|
 | `GET /indicators` | liste des indicateurs disponibles |
-| `POST /evaluate` | scores des indicateurs de position (éclairage) |
+| `POST /evaluate` | scores des indicateurs de position (éclairage et densité) |
 | `POST /score` | score global pondéré en une position |
 | `POST /safety-index` | API historique : indicateurs de position (5 000 points au plus) |
 | `POST /journey-safety` | indices locaux et score global pondéré, utilisé par la carte |
@@ -67,10 +67,19 @@ pas une position : il retrouve exactement le trajet GTFS, les arrêts et les ins
 Son score vaut `1 - estimated_validations_per_service_adjusted / 100`.
 La source est configurable avec `SAFETY_RIDERSHIP_CSV` et chargée une seule fois.
 
+`PopulationDensityIndicatorProvider` (`population_density.py`) lit `PresenceHum_IDF_OK.tif`
+(EPSG:2154, maille de 100 m), via le lecteur commun `raster.py`.
+Le score vaut `1 - valeur / 100` : 0 brut est favorable, 100 brut défavorable selon la convention
+fournie. Il s'applique à la marche et à l'attente, pas au transport. Son chemin est configurable
+avec `SAFETY_POPULATION_DENSITY_RASTER`. Ce n'est pas une mesure de présence nocturne observée.
+
 `POST /journey-safety` reçoit les `Journey` partagés de routing et des `weights`
-(`lighting`, `ridership`, 50/50 par défaut, somme 1). Limites : 100 trajets et 5 000 coordonnées.
+(`lighting`, `ridership`, `population_density`, un tiers chacun sans objet `weights`, somme 1).
+Un ancien objet de poids sans densité conserve `population_density=0`.
+Limites : 100 trajets et 5 000 coordonnées.
 Le service retourne les valeurs locales par sommet et les moyennes temporelles par indicateur,
-puis leur combinaison pondérée. Les indicateurs sans portion applicable sont exclus avec
+puis leur combinaison pondérée. L'indice local piéton est la moyenne à poids égaux
+éclairage/densité, indépendante des préférences. Les indicateurs sans portion applicable sont exclus avec
 renormalisation ; une donnée attendue manquante n'est jamais ignorée.
 
 !!! tip "Ajouter un indicateur"
