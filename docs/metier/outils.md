@@ -54,5 +54,6 @@ Les outils embarqués dans E-Toiles ont déjà permis de proposer aux équipes d
 SIGMAE est une application développée par setec pour contrôler la qualité des données SIG et les mettre en conformité avec le cahier des charges d'un projet. Elle traite les formats Shapefile, File Geodatabase et GeoPackage.
 Le module de contrôle qualité compare chaque couche au modèle attendu : présence des champs, types et longueurs déclarées. Il signale les écarts avant toute livraison.
 Le module de mise en conformité corrige ensuite automatiquement les données : réparation des géométries, reprojection, découpage sur l'emprise et correction des champs non conformes. L'utilisateur suit le traitement en temps réel.
-L'application associe une interface web en R Shiny au moteur de géotraitement ArcGIS (arcpy). Elle est modulaire, ce qui permet d'ajouter de nouveaux contrôles, comme la vérification de la topologie, prévue prochainement.
+L'application associe une interface web en R Shiny au moteur de géotraitement ArcGIS (arcpy). Elle est modulaire, ce qui permet d'ajouter de nouveaux contrôles en fonction des projets.
+
 <img width="908" height="537" alt="image" src="https://github.com/user-attachments/assets/1336f9c5-c290-448e-ac9c-dfb8f10ff694" />
