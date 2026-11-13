@@ -1,0 +1,81 @@
+[project]
+site_name = "Trajets de nuit · Île-de-France"
+site_description = "Documentation du prototype setec pour le Hackaviz Mobilités 2026 : cartographie des trajets de nuit et indicateurs liés au sentiment de sécurité."
+site_author = "Équipe setec – Hackaviz Mobilités 2026"
+copyright = "Prototype développé en deux semaines pour le Hackaviz Mobilités 2026 · Licence MIT"
+repo_url = "https://github.com/setec-labs/hackaviz-2026"
+repo_name = "setec-labs/hackaviz-2026"
+docs_dir = "docs"
+site_dir = "site"
+
+nav = [
+  { "Accueil" = "index.md" },
+  { "Guide utilisateur" = [
+    "utilisateur/index.md",
+    "utilisateur/carte.md",
+    "utilisateur/parametres.md",
+  ] },
+  { "Choix métier" = [
+    "metier/index.md",
+    "metier/scenarios.md",
+    "metier/indicateurs.md",
+    "metier/limites.md",
+  ] },
+  { "Architecture" = [
+    "architecture/index.md",
+    "architecture/services.md",
+    "architecture/frontend.md",
+    "architecture/donnees.md",
+    "architecture/developpement.md",
+  ] },
+  { "À propos" = "a-propos.md" },
+]
+
+[project.theme]
+language = "fr"
+features = [
+  "announce.dismiss",
+  "content.code.copy",
+  "content.tooltips",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.instant",
+  "navigation.path",
+  "navigation.sections",
+  "navigation.tabs",
+  "navigation.top",
+  "search.highlight",
+]
+
+# Palette sombre par défaut, cohérente avec l'application (fond #061B3A, trajet #35C5F4).
+[[project.theme.palette]]
+scheme = "slate"
+primary = "indigo"
+accent = "light blue"
+toggle.icon = "lucide/sun"
+toggle.name = "Passer en mode clair"
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "indigo"
+accent = "light blue"
+toggle.icon = "lucide/moon"
+toggle.name = "Passer en mode sombre"
+
+[project.markdown_extensions]
+abbr = {}
+admonition = {}
+attr_list = {}
+def_list = {}
+footnotes = {}
+md_in_html = {}
+toc.permalink = true
+pymdownx.details = {}
+pymdownx.highlight.anchor_linenums = true
+pymdownx.inlinehilite = {}
+pymdownx.keys = {}
+pymdownx.superfences.custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+pymdownx.tabbed.alternate_style = true
+pymdownx.tasklist.custom_checkbox = true

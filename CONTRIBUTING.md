@@ -22,6 +22,9 @@ hackaviz-2026/
 │   └── safety/              # Service lié aux indicateurs de sécurité
 │       └── pyproject.toml
 │
+├── scripts/
+│   └── run_services.py      # Lance les services et le frontend en local
+│
 ├── pyproject.toml           # Configuration principale du workspace
 ├── uv.lock                  # Versions exactes des dépendances
 └── CONTRIBUTING.md
@@ -76,6 +79,29 @@ uv sync
 - préparer les différents projets du workspace.
 
 Il n'est normalement pas nécessaire de lancer manuellement `pip install`.
+
+## Lancer les services en local
+
+Le script multiplateforme `scripts/run_services.py` (bibliothèque standard uniquement) démarre en une
+commande :
+
+| Service | URL |
+|---|---|
+| routing | <http://localhost:8001/docs> |
+| safety | <http://localhost:8002/docs> |
+| frontend | <http://localhost:5173> |
+
+```powershell
+uv run python scripts/run_services.py                            # tous les services
+uv run python scripts/run_services.py --only safety frontend     # une sélection
+uv run python scripts/run_services.py --reload                   # rechargement des services Python
+```
+
+Chaque ligne de sortie est préfixée par le nom du service. `Ctrl+C` arrête tous les services ; si l'un
+d'eux s'arrête (port déjà utilisé, erreur au démarrage), les autres sont arrêtés aussi. Le frontend
+nécessite au préalable `npm install` dans `frontend/`.
+
+Tests du script : `uv run python -m unittest discover -s scripts\tests -v`.
 
 ---
 

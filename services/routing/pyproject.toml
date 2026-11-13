@@ -7,11 +7,35 @@ authors = [
     { name = "Florian Dufour", email = "florian.dufour@setec.com" }
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "fastapi>=0.162.3",
+    "geopandas",
+    "hackaviz-2026",
+    "numpy",
+    "pandas",
+    "pydantic>=2",
+    "pyogrio",
+    "pyproj",
+    "scipy",
+    "shapely>=2",
+    "tzdata",
+    "uvicorn>=0.54.0",
+]
 
 [project.scripts]
 routing = "routing:main"
+transit-accessibility = "routing.transit_accessibility:main"
+transit-accessibility-scenarios = "routing.run_scenarios:main"
+optimize-scenarios = "routing.optimize:main"
 
 [build-system]
 requires = ["uv_build>=0.13.7,<0.14.0"]
 build-backend = "uv_build"
+
+[tool.uv.sources]
+hackaviz-2026 = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+]

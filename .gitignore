@@ -38,7 +38,7 @@ MANIFEST
 *.spec
 
 # heavy data
-./data/
+/data/
 
 # Installer logs
 pip-log.txt
@@ -195,3 +195,6 @@ secrets/
 *.key
 keys/
 *.nogit.*
+
+# Derived by `uv run --package routing optimize-scenarios`
+data/output/scenarios/**/journeys.min.json

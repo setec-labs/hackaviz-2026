@@ -10,7 +10,9 @@ authors = [
     { name = "Benoit Fontanel", email = "benoit.fontanel@setec.com"}
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "pydantic>=2,<3",
+]
 
 [project.scripts]
 hackaviz-2026 = "hackaviz_2026:main"
@@ -21,3 +23,8 @@ build-backend = "uv_build"
 
 [tool.uv.workspace]
 members = ["frontend", "services/routing", "services/safety"]
+
+[dependency-groups]
+dev = [
+    "zensical>=0.1.1",
+]

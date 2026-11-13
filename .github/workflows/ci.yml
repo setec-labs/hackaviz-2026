@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-tests:
+    name: Python tests
+    runs-on: ubuntu-latest
+    steps:
+      # Git LFS data (scenarios, GTFS) is not fetched: tests that need it are skipped.
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --all-packages --locked
+
+      - name: Safety tests
+        run: uv run --package safety python -m unittest discover -s services/safety/tests -v
+
+      - name: Routing tests
+        run: uv run --package routing python -m unittest discover -s services/routing/tests -v
+
+      - name: Scripts tests
+        run: uv run python -m unittest discover -s scripts/tests -v
+
+  frontend-tests:
+    name: Frontend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  docs:
+    name: Documentation (GitHub Pages)
+    if: github.event_name != 'pull_request'
+    needs: [python-tests, frontend-tests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      # Pages hosts a single site: both versions are rebuilt from their branch on every deployment,
+      # main at the root (prod) and develop under /dev/.
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          path: prod
+
+      - name: Checkout develop
+        uses: actions/checkout@v7
+        with:
+          ref: develop
+          path: dev
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Build documentation
+        # The script comes from the branch that triggered the run.
+        run: >-
+          python3 ${{ github.ref_name == 'main' && 'prod' || 'dev' }}/scripts/build_pages.py
+          --prod prod --dev dev --output _site
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
