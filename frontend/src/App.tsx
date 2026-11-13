@@ -84,7 +84,7 @@ export function App() {
         <header className="flex items-start justify-between gap-3">
           <div className="pointer-events-auto max-w-sm rounded-xl border border-surface-raised/70 bg-surface/80 px-3 py-2 shadow-xl shadow-night/60 backdrop-blur-md">
             <h1 className="text-sm font-semibold tracking-wide">
-              Trajets de nuit <span className="text-trip">·</span> Île-de-France
+              Noctambulle <span className="text-trip">·</span> Île-de-France
             </h1>
             <p className="mt-0.5 text-xs text-ink-muted">
               {simulatedLabel && (

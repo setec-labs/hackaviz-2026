@@ -49,7 +49,8 @@ def _cors_origins() -> list[str]:
 
 
 app = FastAPI(
-    title="Safety indicators",
+    title="Noctambulle - Safety indicators",
+    version="1.0.0",
     responses={422: {"model": ValidationErrorResponse}},
 )
 app.add_middleware(

@@ -2,7 +2,7 @@
 
 ## Contexte
 
-Ce repository contient le projet Hackaviz Mobilites 2026 de l'equipe setec.
+Ce repository contient Noctambulle, le projet de l'equipe setec pour le Hackaviz Mobilites 2026.
 
 Le projet propose une cartographie interactive des trajets de nuit en Ile-de-France afin d'explorer les liens entre :
 

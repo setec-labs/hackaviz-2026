@@ -1,4 +1,4 @@
-# Contribuer au projet Hackaviz 2026
+# Contribuer à Noctambulle
 
 Ce document explique comment installer le projet, travailler sur sa branche et contribuer aux différentes briques.
 

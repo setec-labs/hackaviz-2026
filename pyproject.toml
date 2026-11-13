@@ -1,7 +1,7 @@
 [project]
 name = "hackaviz-2026"
-version = "0.1.0"
-description = "Projet Hackaviz Mobilités 2026 : cartographier les trajets du quotidien et explorer les liens entre temps de parcours, accessibilité et sentiment de sécurité."
+version = "1.0.0"
+description = "Noctambulle : cartographier les trajets de nuit en Île-de-France et explorer les liens entre temps de parcours, accessibilité et sentiment de sécurité."
 readme = "README.md"
 authors = [
     { name = "Florian Dufour", email = "florian.dufour@setec.com" },

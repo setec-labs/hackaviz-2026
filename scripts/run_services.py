@@ -105,7 +105,7 @@ def check_prerequisites(specs: Sequence[ServiceSpec], frontend_dir: Path = FRONT
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     """Parse the service launcher options."""
-    parser = argparse.ArgumentParser(description="Launch the Hackaviz 2026 services locally.")
+    parser = argparse.ArgumentParser(description="Launch the Noctambulle services locally.")
     parser.add_argument(
         "--only",
         nargs="+",

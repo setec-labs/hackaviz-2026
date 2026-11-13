@@ -1,6 +1,6 @@
-# Frontend
+# Frontend de Noctambulle
 
-Cette brique contient l'interface de visualisation du projet Hackaviz Mobilités 2026 : une cartographie
+Cette brique contient l'interface de visualisation de Noctambulle, réalisée pour le Hackaviz Mobilités 2026 : une cartographie
 interactive des trajets de nuit en Île-de-France, animés dans le temps et colorés selon un indicateur lié au
 sentiment de sécurité.
 

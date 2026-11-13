@@ -134,7 +134,7 @@ export function MapView({
         ref={containerRef}
         className="h-full w-full"
         role="region"
-        aria-label="Carte des trajets de nuit en Île-de-France. Cliquez sur un point de départ pour afficher son scénario."
+        aria-label="Noctambulle : carte des trajets de nuit en Île-de-France. Cliquez sur un point de départ pour afficher son scénario."
       />
     </div>
   );

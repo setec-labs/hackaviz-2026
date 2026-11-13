@@ -22,7 +22,7 @@ DEV_BANNER = (
 NO_PROD_PAGE = """<!doctype html>
 <meta charset="utf-8">
 <meta http-equiv="refresh" content="0; url=dev/">
-<title>Hackaviz Mobilités 2026</title>
+<title>Noctambulle</title>
 <p>Pas encore de version stable : <a href="dev/">documentation de développement</a>.</p>
 """
 

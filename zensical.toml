@@ -1,6 +1,6 @@
 [project]
 site_name = "Noctambulle · Trajets de nuit en Île-de-France"
-site_description = "Documentation du prototype setec pour le Hackaviz Mobilités 2026 : cartographie des trajets de nuit et indicateurs liés au sentiment de sécurité."
+site_description = "Documentation de Noctambulle, prototype setec pour le Hackaviz Mobilités 2026 : cartographie des trajets de nuit et indicateurs liés au sentiment de sécurité."
 site_author = "Équipe setec – Hackaviz Mobilités 2026"
 copyright = "Prototype développé en deux semaines pour le Hackaviz Mobilités 2026 · Licence MIT"
 repo_url = "https://github.com/setec-labs/hackaviz-2026"

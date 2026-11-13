@@ -1,5 +1,7 @@
 # Noctambulle · Trajets de nuit en Île-de-France
 
+[![Documentation de Noctambulle](https://img.shields.io/badge/Documentation-Noctambulle-286FAE?logo=readthedocs&logoColor=white)](https://setec-labs.github.io/hackaviz-2026/)
+
 **Comment se vivent les trajets de nuit en transports en commun en Île-de-France ?** Noctambulle
 est un visualisateur de trajets nocturnes qui met en regard leur durée, les portions à pied ou en
 attente, l'éclairage nocturne, la densité de population et la fréquentation estimée à bord.

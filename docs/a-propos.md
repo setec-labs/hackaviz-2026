@@ -2,7 +2,7 @@
 
 ## Le hackathon
 
-Ce projet a été réalisé pour le **[Hackaviz Mobilités 2026](https://github.com/hackathons-mobilites/hackaviz_2026)**,
+Noctambulle a été réalisé pour le **[Hackaviz Mobilités 2026](https://github.com/hackathons-mobilites/hackaviz_2026)**,
 un hackathon de datavisualisation sur les mobilités en Île-de-France, organisé à distance du 2 au
 13 novembre 2026. Les finalistes présentent leurs travaux à Paris le 26 novembre.
 

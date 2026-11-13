@@ -1,5 +1,44 @@
 # Changelog
 
+## 1.0.0 — 2026-11-13
+
+Version **Noctambulle** intégrant les contributions de l'équipe setec.
+Ce numéro de version ne change pas le statut de prototype de hackathon.
+
+### Fonctionnalités
+
+- Trois indicateurs contextuels : éclairage nocturne et densité de population sur les portions
+  à pied/en attente, fréquentation estimée sur les arcs en transport collectif.
+- Fréquentation issue du CSV par arc, à partir de `estimated_validations_per_service_adjusted`,
+  et intégration du raster de présence humaine `PresenceHum_IDF_OK.tif`.
+- Score global du trajet calculé par moyenne pondérée des moyennes temporelles de chaque indicateur.
+  Les poids sont configurables dans l'API et dans le panneau de l'interface :
+  rouge/faible, gris/normal, vert/fort, puis normalisation pour totaliser 100 %.
+- Couleur des bulles d'arrivée fondée sur le score global pondéré ; les couleurs locales restent
+  indépendantes des préférences. La taille des bulles suit la population de destination disponible.
+- Ambiance sonore activée par défaut, démarrant à la première interaction si le navigateur bloque
+  la lecture automatique, sans annuler une désactivation explicite.
+- Nom Noctambulle harmonisé dans l'interface, les titres et les métadonnées de l'application.
+
+### Documentation et lancement
+
+- Documentation technique et utilisateur actualisée, avec captures de l'interface, provenance
+  des données et contributions métier de l'équipe.
+- Badge vers la [documentation publiée](https://setec-labs.github.io/hackaviz-2026/) dans le README.
+- Installation séparée du lancement ; commande unique mise en avant :
+  `uv run python scripts/run_services.py`.
+- Versions des packages alignées sur `1.0.0`. Les noms techniques des packages Python et les
+  contrats publics restent inchangés.
+
+### Limites connues
+
+- Les indicateurs ne mesurent ni un danger objectif ni la présence nocturne ou l'occupation
+  effectivement observées. Les absences de données sont signalées, pas remplacées par une valeur neutre.
+- Les scénarios restent précalculés, les horaires théoriques et les destinations représentées
+  par les mairies ; le rapport par scénario n'est pas implémenté.
+- L'application fonctionne localement. GitHub Pages publie uniquement la documentation ;
+  les données volumineuses nécessitent Git LFS et le fond de carte un accès Internet.
+
 ## 0.01 — 2026-11-12
 
 Première version du prototype réalisé par l'équipe setec pour le
