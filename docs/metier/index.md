@@ -14,7 +14,7 @@ Le prototype croise trois dimensions sur une même carte :
 |---|---|---|
 | Temps de parcours | animation des trajets, heure d'arrivée | [Scénarios et trajets](scenarios.md) |
 | Accessibilité | marche, attente, correspondances, trajets irréalistes | [Scénarios et trajets](scenarios.md) |
-| Environnement nocturne | indice d'éclairage sur les portions à pied et d'attente | [Indicateurs](indicateurs.md) |
+| Environnement nocturne | éclairage à pied/en attente, fréquentation estimée en transport et score pondéré | [Indicateurs](indicateurs.md) |
 
 ## Principes
 
@@ -22,7 +22,7 @@ Le prototype croise trois dimensions sur une même carte :
    contribuer au sentiment de sécurité ou d'insécurité. Un lieu peu éclairé n'est pas présenté comme
    dangereux, et les libellés parlent de « vigilance » et de « contexte », jamais de « danger ».
 2. **Aucune valeur inventée en silence.** Une donnée manquante s'affiche « non disponible ». Les valeurs
-   provisoires (0,5 hors marche et attente, population simulée en mode démonstration) sont signalées dans
+   simulées (population ou indicateurs en mode démonstration) sont signalées dans
    la légende, les infobulles et cette documentation.
 3. **Une convention de score unique.** Tous les indicateurs sont ramenés entre 0 (situation la moins
    favorable) et 1 (la plus favorable). Voir [Indicateurs](indicateurs.md#convention-de-score).

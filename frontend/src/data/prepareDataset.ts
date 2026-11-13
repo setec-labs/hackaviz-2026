@@ -15,6 +15,8 @@ export interface RenderTrip {
   timestamps: number[];
   /** Index per vertex; null if unavailable or if the index service failed. */
   safety: SafetyIndexValue[];
+  /** Server-computed global weighted score, when contextual evaluation was requested. */
+  globalSafety?: SafetyIndexValue;
   /** Whether the trip exceeds two hours and is displayed neutrally. */
   implausible: boolean;
   /** Color per vertex, neutral for implausible trips. */
@@ -44,7 +46,11 @@ export interface RenderDataset {
  * @param trips - Journeys in display order.
  * @param safetyValues - Indices flattened in trip/vertex order, or null on failure.
  */
-export function prepareDataset(trips: Trip[], safetyValues: SafetyIndexValue[] | null): RenderDataset {
+export function prepareDataset(
+  trips: Trip[],
+  safetyValues: SafetyIndexValue[] | null,
+  journeyScores?: ReadonlyMap<string, SafetyIndexValue>,
+): RenderDataset {
   const originMs = trips.reduce((min, trip) => Math.min(min, trip.startTimeMs), Number.POSITIVE_INFINITY);
   if (!Number.isFinite(originMs)) {
     return { trips: [], arrivals: [], constellation: [], originMs: 0, startTime: 0, endTime: 0 };
@@ -71,6 +77,7 @@ export function prepareDataset(trips: Trip[], safetyValues: SafetyIndexValue[] |
       path: trip.path,
       timestamps,
       safety,
+      globalSafety: journeyScores ? (journeyScores.get(trip.id) ?? null) : undefined,
       implausible,
       colors: safety.map((value) => (implausible ? implausibleTripColor(150) : safetyIndexColor(value))),
       markerRadii: safety.map((value) => classifySafetyIndex(value).markerRadiusPx),

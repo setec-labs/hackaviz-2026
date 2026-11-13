@@ -32,6 +32,8 @@ function tripLines(dataset: RenderDataset, trip: RenderTrip): string[] {
     `<strong>${escapeHtml(trip.destinationName ?? trip.id)}</strong>`,
     `${escapeHtml(formatMode(trip.mode))} · ${formatDuration(trip.endTime - trip.startTime)}`,
     `${formatSimulatedTime(dataset.originMs, trip.startTime)} → ${formatSimulatedTime(dataset.originMs, trip.endTime)}`,
+    ...(!trip.implausible && trip.globalSafety !== undefined
+      ? [`Score global pondéré : ${formatIndex(trip.globalSafety)}`] : []),
     ...(trip.implausible ? [mutedLine(IMPLAUSIBLE_TRIP_LABEL)] : []),
   ];
 }
@@ -72,6 +74,8 @@ function arrivalLines(dataset: RenderDataset, arrival: Arrival): string[] {
   const windowMinutes = ANXIETY_WORST_SECONDS / 60;
   return [
     ...header,
+    ...(arrival.globalSafety !== undefined
+      ? [`Score global pondéré : ${formatIndex(arrival.globalSafety)}`] : []),
     `Anxiété des ${windowMinutes} pires minutes du trajet : ${formatIndex(anxiety)}`,
     mutedLine(`Indicateur moyen sur ces ${windowMinutes} minutes : ${formatIndex(worst)} — ${classifySafetyIndex(worst).label}`),
     mutedLine("Indicateur, pas une mesure objective du danger."),

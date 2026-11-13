@@ -41,9 +41,10 @@ instantanée.
 | Route | Rôle |
 |---|---|
 | `GET /indicators` | liste des indicateurs disponibles |
-| `POST /evaluate` | scores de tous les indicateurs en une position |
+| `POST /evaluate` | scores des indicateurs de position (éclairage et densité) |
 | `POST /score` | score global pondéré en une position |
-| `POST /safety-index` | indice pour un lot de positions (5 000 au plus), utilisé par la carte |
+| `POST /safety-index` | API historique : indicateurs de position (5 000 points au plus) |
+| `POST /journey-safety` | indices locaux et score global pondéré, utilisé par la carte |
 
 Chaque indicateur est un **provider** qui respecte une interface commune :
 
@@ -57,8 +58,29 @@ class IndicatorProvider(Protocol):
         """Retourne un score normalisé entre 0.0 et 1.0."""
 ```
 
-Le seul provider actuel, `LightingIndicatorProvider` (`lighting.py`), reprojette la position en
-Lambert 93 avec pyproj, lit le pixel du raster avec rasterio et divise la valeur par 100.
+`LightingIndicatorProvider` (`lighting.py`) reprojette la position en
+Lambert 93 avec pyproj et lit le pixel du raster avec rasterio. Une valeur strictement inférieure
+à 50 donne un score de 0 ; à partir de 50 inclus, la valeur est divisée par 100.
+
+`RidershipIndicatorProvider` (`ridership.py`) évalue un **arc** via `evaluate_arc(JourneyLeg)`,
+pas une position : il retrouve exactement le trajet GTFS, les arrêts et les instants dans le CSV.
+Son score vaut `1 - estimated_validations_per_service_adjusted / 100`.
+La source est configurable avec `SAFETY_RIDERSHIP_CSV` et chargée une seule fois.
+
+`PopulationDensityIndicatorProvider` (`population_density.py`) lit `PresenceHum_IDF_OK.tif`
+(EPSG:2154, maille de 100 m), via le lecteur commun `raster.py`.
+Le score vaut `1 - valeur / 100` : 0 brut est favorable, 100 brut défavorable selon la convention
+fournie. Il s'applique à la marche et à l'attente, pas au transport. Son chemin est configurable
+avec `SAFETY_POPULATION_DENSITY_RASTER`. Ce n'est pas une mesure de présence nocturne observée.
+
+`POST /journey-safety` reçoit les `Journey` partagés de routing et des `weights`
+(`lighting`, `ridership`, `population_density`, un tiers chacun sans objet `weights`, somme 1).
+Un ancien objet de poids sans densité conserve `population_density=0`.
+Limites : 100 trajets et 5 000 coordonnées.
+Le service retourne les valeurs locales par sommet et les moyennes temporelles par indicateur,
+puis leur combinaison pondérée. L'indice local piéton est la moyenne à poids égaux
+éclairage/densité, indépendante des préférences. Les indicateurs sans portion applicable sont exclus avec
+renormalisation ; une donnée attendue manquante n'est jamais ignorée.
 
 !!! tip "Ajouter un indicateur"
     Créer un provider qui renvoie un score dans [0, 1] (1 = le plus favorable), l'enregistrer dans
@@ -75,6 +97,8 @@ Lambert 93 avec pyproj, lit le pixel du raster avec rasterio et divise la valeur
 | 503 | donnée source indisponible ou illisible (raster absent) |
 
 Pour `/safety-index`, une position hors du raster n'est pas une erreur : sa valeur vaut `null`.
+Pour `/journey-safety`, un arc inconnu ou un pixel manquant donne également une valeur locale
+`null`, et un score global `null` si l'indicateur concerné a un poids positif.
 
 ## Modèles partagés
 
@@ -84,6 +108,7 @@ Les contrats échangés sont définis une seule fois dans `src/hackaviz_2026/` :
 |---|---|
 | `models.py` | `Position`, `Indicator`, `IndicatorResult`, requêtes et réponses de safety |
 | `routing.py` | `Journey`, `JourneyLeg`, `ScenarioDocument`, `ScenarioSummary`, `Scenario`, rapport |
+| `journey_safety.py` | `SafetyWeights`, requête et réponse de scores contextualisés ; réutilise `Journey` |
 | `api.py` | formats d'erreur communs |
 
 Les contraintes (latitude entre -90 et 90, score entre 0 et 1, poids positifs…) sont portées par les

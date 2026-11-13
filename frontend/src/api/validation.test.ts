@@ -90,6 +90,16 @@ describe("parseScenarioResponse", () => {
         destinationPopulation: null,
         mode: "transit",
         pointModes: ["walk_access", "walk_access", "transit"],
+        legs: [
+          {
+            mode: "walk_access", startTimeMs: start, endTimeMs: start + 180_000,
+            fromStop: "ORIGIN", toStop: "S1", gtfsTripId: null, pointRange: [0, 2],
+          },
+          {
+            mode: "transit", startTimeMs: start + 180_000, endTimeMs: start + 600_000,
+            fromStop: "S1", toStop: "DESTINATION", gtfsTripId: "T1", pointRange: [2, 3],
+          },
+        ],
         startTimeMs: start,
         endTimeMs: Date.parse(journey.end_time),
         path: journey.coordinates,

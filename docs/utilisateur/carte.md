@@ -57,8 +57,8 @@ si le son est activé, un tintement. Les bulles restent affichées et forment pe
 chacune est reliée à l'arrivée précédente la plus proche.
 
 - **Taille** : population de la commune d'arrivée.
-- **Couleur** : anxiété des **10 pires minutes** du trajet, consécutives ou non (voir
-  [Indicateurs](../metier/indicateurs.md#anxiete-des-10-pires-minutes)).
+- **Couleur** : score global pondéré du trajet (voir
+  [Indicateurs](../metier/indicateurs.md#score-global-pondere)).
 - **Bulle creuse et grise** : trajet de plus de 2 heures.
 
 ## Infobulles
@@ -66,16 +66,26 @@ chacune est reliée à l'arrivée précédente la plus proche.
 Le survol d'un élément affiche une infobulle :
 
 - **trajet** : destination, mode, horaires et indicateur au point courant ;
-- **bulle d'arrivée** : destination, heure d'arrivée, population, anxiété des 10 pires minutes ;
+- **bulle d'arrivée** : destination, heure d'arrivée, population, score global et anxiété des 10 pires minutes ;
 - **point de départ** : nom et description du scénario.
+
+## Pondération du trajet
+
+Le panneau propose trois indicateurs : éclairage, fréquentation estimée et densité de population.
+Pour chacun, choisissez faible (rond rouge, importance 1), normale (gris, 2) ou forte (vert, 3).
+Les importances sont renormalisées pour que les poids totalisent 100 %, avec un tiers chacun
+par défaut. Les pourcentages affichés sont arrondis. Ce réglage change le score global et les
+bulles d'arrivée, pas les couleurs locales. L'éclairage et la densité concernent la marche et
+l'attente ; la fréquentation concerne le transport.
 
 ## Le son
 
 Le panneau **Options** du contrôleur règle l'ambiance sonore :
 
-- une **boucle d'ambiance**, à 50 % du volume par défaut (0 % pour couper) ;
+- une **boucle d'ambiance**, activée par défaut à 50 % du volume (0 % pour couper) ;
 - un **tintement** à chaque arrivée, plus grave pour les communes plus peuplées, désactivable par une
   case à cocher.
 
-Les navigateurs n'autorisent le son qu'après une première interaction avec la page. Si « Son en attente »
-s'affiche, cliquez sur « Activer l'ambiance sonore ».
+Si le navigateur bloque la lecture automatique, « Son en attente » s'affiche :
+la musique démarre à la première interaction avec la page (clic ou touche), ou via
+« Activer l'ambiance sonore ». Une désactivation volontaire reste respectée.

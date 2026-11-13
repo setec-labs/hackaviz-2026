@@ -1,4 +1,5 @@
-import type { GeoPoint, SafetyIndexValue, ScenarioSummary, Trip } from "../domain/types";
+import type { GeoPoint, SafetyIndexValue, ScenarioSummary, Trip, TripLeg } from "../domain/types";
+import type { JourneySafetyResultDto } from "./contracts";
 
 /** An API response does not satisfy the frontend's expected contract. */
 export class ContractError extends Error {
@@ -90,6 +91,7 @@ function parseJourney(raw: unknown, where: string): Trip {
   }
   const legModes: string[] = [];
   const pointModes: string[] = [];
+  const parsedLegs: TripLeg[] = [];
   journey.legs.forEach((rawLeg: unknown, index) => {
     const legWhere = `${where}.legs[${index}]`;
     const leg = readRecord(rawLeg, legWhere);
@@ -103,6 +105,18 @@ function parseJourney(raw: unknown, where: string): Trip {
       throw new ContractError(`${legWhere}.point_range: legs must partition the coordinates in order`);
     }
     legModes.push(mode);
+    const legStart = readTimestamp(leg.start_time, `${legWhere}.start_time`);
+    const legEnd = readTimestamp(leg.end_time, `${legWhere}.end_time`);
+    if (legEnd < legStart) throw new ContractError(`${legWhere}: reversed times`);
+    parsedLegs.push({
+      mode,
+      startTimeMs: legStart,
+      endTimeMs: legEnd,
+      fromStop: readString(leg.from_stop, `${legWhere}.from_stop`),
+      toStop: readString(leg.to_stop, `${legWhere}.to_stop`),
+      gtfsTripId: leg.gtfs_trip_id == null ? null : readString(leg.gtfs_trip_id, `${legWhere}.gtfs_trip_id`),
+      pointRange: [range[0], range[1]],
+    });
     for (let point = range[0]; point < range[1]; point += 1) pointModes.push(mode);
   });
   if (pointModes.length !== coordinates.length) {
@@ -138,6 +152,7 @@ function parseJourney(raw: unknown, where: string): Trip {
     destinationPopulation: readPopulation(destination.population, `${where}.destination.population`),
     mode: summarizeJourneyMode(legModes),
     pointModes,
+    legs: parsedLegs,
     startTimeMs,
     endTimeMs,
     path,
@@ -229,5 +244,33 @@ export function parseSafetyIndexResponse(raw: unknown, expectedLength: number): 
       throw new ContractError(`indices[${index}]: value must be a number in [0, 1] or null`);
     }
     return item.value;
+  });
+}
+
+function readIndex(value: unknown, where: string): SafetyIndexValue {
+  if (value === null) return null;
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) {
+    throw new ContractError(`${where}: expected a score in [0, 1] or null`);
+  }
+  return value;
+}
+
+/** Validate contextual scores, including journey identity and vertex alignment. */
+export function parseJourneySafetyResponse(raw: unknown, trips: Trip[]): JourneySafetyResultDto[] {
+  const response = readRecord(raw, "Journey safety");
+  if (!Array.isArray(response.journeys) || response.journeys.length !== trips.length) {
+    throw new ContractError("Journey safety: result count mismatch");
+  }
+  return response.journeys.map((item: unknown, index) => {
+    const result = readRecord(item, `journeys[${index}]`);
+    const trip = trips[index];
+    if (!trip || result.journey_id !== trip.id || !Array.isArray(result.values) || result.values.length !== trip.path.length) {
+      throw new ContractError("Journey safety: journey identity or vertex count mismatch");
+    }
+    return {
+      journey_id: trip.id,
+      values: result.values.map((value: unknown) => readIndex(value, "Journey value")),
+      score: readIndex(result.score, "Journey score"),
+    };
   });
 }

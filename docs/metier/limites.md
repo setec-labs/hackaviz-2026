@@ -7,12 +7,16 @@
 
 ## Données et indicateurs
 
-- **Un seul indicateur.** L'indice ne repose que sur l'éclairage nocturne. D'autres facteurs du sentiment
-  de sécurité (fréquentation, commerces ouverts, présence humaine, aménagement des arrêts…) ne sont pas
-  pris en compte.
-- **Valeur provisoire à bord.** Les portions en véhicule reçoivent 0,5 par convention.
+- **Trois indicateurs seulement.** Éclairage et densité à pied/en attente, fréquentation estimée à bord :
+  commerces ouverts, personnel et aménagement des arrêts ne sont pas pris en compte.
+- **Fréquentation approximative.** Les validations estimées par service ne mesurent pas l'occupation.
+  Elles utilisent des imputations et des ratios de taille de véhicule. Associer une fréquentation plus
+  élevée à un contexte plus favorable est une hypothèse, non une preuve de sécurité.
 - **Unité de l'éclairage.** Le raster est en échelle logarithmique de 0 à 100, mais son unité physique
   n'est pas documentée.
+- **Densité et présence nocturne.** Le raster de densité est un indice préparé de 0 à 100,
+  inversé selon la convention fournie. Sa construction amont reste à documenter ;
+  il ne mesure pas la présence humaine observée la nuit.
 - **Horaires théoriques.** Les itinéraires utilisent les horaires GTFS prévus, pas les passages réels
   (retards, suppressions, travaux).
 - **Une seule nuit.** Les scénarios portent sur la nuit du 7 au 8 novembre 2026.
@@ -38,8 +42,8 @@
 
 ## Pistes pour la suite
 
-- Ajouter des indicateurs (fréquentation, commerces ouverts la nuit, aménagement des arrêts) et un
-  indicateur propre aux portions à bord.
+- Ajouter des indicateurs (commerces ouverts la nuit, aménagement des arrêts) et valider les
+  estimations de fréquentation avec des observations.
 - Proposer une alternative chiffrée aux trajets de plus de 2 heures (taxi, vélo, VTC).
 - Implémenter le rapport par scénario : personnes arrivées et anxiété par destination.
 - Faire valider les seuils et la notion d'« anxiété des 10 pires minutes » par des usagers.

@@ -12,7 +12,10 @@ Un indicateur defavorable ne doit jamais etre presente comme une preuve objectiv
 - `src/safety/service.py` : `IndicatorService`, orchestration des providers et calcul du score global.
 - `src/safety/providers.py` : protocole `IndicatorProvider` et erreurs communes des providers
   (`IndicatorUnavailableError`, `IndicatorDataError`).
-- `src/safety/lighting.py` : lecture du raster et `LightingIndicatorProvider`.
+- `src/safety/raster.py` : lecteur GeoTIFF commun, reprojection et couverture.
+- `src/safety/lighting.py` : normalisation et `LightingIndicatorProvider`.
+- `src/safety/population_density.py` : raster `PresenceHum_IDF_OK.tif` et contexte de densite.
+- `src/safety/ridership.py` : CSV de frequentation, `RidershipIndicatorProvider.evaluate_arc`.
 - `src/safety/luminosite_log.tif` : raster d'eclairage en echelle log livre par la branche `victoria`
   (`luminosite.tif`, l'ancienne version lineaire, n'est plus utilise).
 - `tests/test_api.py` : tests des modeles, du service et des routes.
@@ -21,6 +24,8 @@ Un indicateur defavorable ne doit jamais etre presente comme une preuve objectiv
   `EvaluateResponse`, `IndicatorWeight`, `ScoreRequest`, `ScoreResponse`, `SafetyIndexRequest`,
   `PositionSafetyIndex`, `SafetyIndexResponse`) sont definis dans `src/hackaviz_2026/models.py`.
   Ne pas les dupliquer dans ce service.
+- `src/hackaviz_2026/journey_safety.py` definit les poids de somme 1 et les contrats
+  de `/journey-safety`, en reutilisant `Journey` et `JourneyLeg` de `routing.py`.
 
 ## Convention de score
 
@@ -43,9 +48,16 @@ chaque provider applique sa propre normalisation avant de retourner son score.
 - `POST /score` (`ScoreRequest`) -> `ScoreResponse` : evalue les indicateurs demandes et calcule
   leur moyenne ponderee.
 - `POST /safety-index` (`SafetyIndexRequest`) -> `SafetyIndexResponse` : route batch consommee
-  par le frontend. Au plus 5 000 points (`MAX_SAFETY_INDEX_POINTS`, aligne sur la taille de lot du
+  par les anciens clients de position. Au plus 5 000 points (`MAX_SAFETY_INDEX_POINTS`, aligne sur la taille de lot du
   client frontend). Les indices sont dans l'ordre des points ; `value` est la moyenne a poids egaux
   de tous les indicateurs, ou `null` si l'un d'eux n'a pas de donnee a cette position.
+- `POST /journey-safety` : route frontend actuelle. Au plus 100 `Journey` et 5 000
+  coordonnees par lot ; `weights.lighting`, `weights.ridership`, `weights.population_density`
+  dans `[0, 1]`, de somme 1 (tolerance `1e-9`), un tiers chacun sans `weights`.
+  Les anciens objets de poids sans densite conservent `population_density=0`.
+  Valeurs locales par sommet et score global pondere.
+  Les routes de position restent limitees aux providers de position ; la frequentation
+  necessite le contexte d'un arc, pas seulement une coordonnee.
 
 Regles :
 
@@ -119,7 +131,7 @@ Position WGS84 (EPSG:4326)
     -> reprojection dans le CRS du raster (pyproj, always_xy=True)
     -> pixel contenant la position (transformation affine inverse, arrondi vers le bas)
     -> valeur brute (rasterio, bande 1, nodata masque)
-    -> normalize_lighting : valeur / 100
+    -> normalize_lighting : 0 si valeur < 50, sinon valeur / 100
     -> score [0, 1]
 ```
 
@@ -128,11 +140,13 @@ de 0 a 100 deja en echelle logarithmique (unite non documentee), environ 37 % de
 
 Decisions :
 
-- normalisation **lineaire** `valeur / 100` : le log est desormais applique en amont dans le
+- seuil : une valeur brute strictement inferieure a 50 donne 0 ; a partir de 50 inclus,
+  normalisation **lineaire** `valeur / 100`. Ce seuil accentue le contraste des zones peu
+  eclairees, sans constituer une preuve de danger. Le log est deja applique en amont dans le
   raster (`luminosite_log.tif`, branche `victoria`). Ne pas rajouter de log dans le service, il
   serait applique deux fois. Historique : un `log(1 + v) / log(101)` etait applique sur
   `luminosite.tif` car en lineaire 98,5 % de Paris tombait sous 0,25. Avec le raster log :
-  Chatelet ~0,80, bois de Vincennes ~0,18. Pour changer de strategie, modifier uniquement
+  Chatelet ~0,80, bois de Vincennes = 0 (valeur brute ~18). Pour changer de strategie, modifier uniquement
   `normalize_lighting`, puis ses tests et la documentation ;
 - position hors raster, nodata ou `NaN` -> `IndicatorUnavailableError` ;
 - valeur brute hors `[0, 100]` -> `IndicatorDataError`, sans la borner ;
@@ -141,10 +155,35 @@ Decisions :
 
 ## Integration frontend
 
-Le frontend appelle `POST /safety-index` (`frontend/src/api/http/fastApiClients.ts`) par lots de
-5 000 points. CORS autorise par defaut le serveur Vite (`http://localhost:5173`, configurable
+Le frontend appelle `POST /journey-safety` (`frontend/src/api/http/fastApiClients.ts`) avec les
+trajets et poids, par lots de 100 trajets et 5 000 coordonnees maximum. CORS autorise par defaut le serveur Vite (`http://localhost:5173`, configurable
 avec `SAFETY_CORS_ORIGINS`). Toute evolution de ce contrat doit etre alignee avec
 `frontend/src/api/contracts.ts` et `frontend/src/api/validation.ts`.
+
+## Indicateur `ridership` et aggregation contextuelle
+
+- CSV configure par `SAFETY_RIDERSHIP_CSV`, charge une fois au premier appel.
+- Correspondance exacte : `gtfs_trip_id`, `from_stop`, `to_stop`, debut et fin compares en UTC.
+- `estimated_validations_per_service_adjusted` est deja inverse, dans `[0, 100]`.
+  Appliquer `1 - valeur / 100` (plus de frequentation estimee = plus favorable, hypothese).
+  Il ne s'agit pas de l'occupation observee des vehicules.
+- Eclairage et densite sur marche/attente ; frequentation sur transport ; aucune valeur neutre inventee.
+- Indice local pieton : moyenne a poids egaux eclairage/densite, `null` si une donnee manque.
+- Moyenne temporelle par indicateur, puis moyenne selon les poids configures.
+  Les indicateurs sans portion applicable sont exclus avec renormalisation des poids.
+  Une donnee attendue manquante rend le score global `null` si son poids est positif.
+  Les valeurs locales restent evaluees, meme avec un poids nul ; une source illisible reste une 503.
+- Les bulles utilisent le score global ; les couleurs locales ne dependent pas des poids.
+
+## Indicateur `population_density`
+
+- Source `PresenceHum_IDF_OK.tif` livree par Victoria : EPSG:2154, maille de 100 m.
+- Chemin configurable par `SAFETY_POPULATION_DENSITY_RASTER`, chargement paresseux unique.
+- Indice brut prepare de 0 (favorable) a 100 (defavorable) : appliquer `1 - valeur / 100`,
+  sans seuil ni nouveau logarithme. Ne pas traiter la valeur brute comme des habitants/km2.
+- Meme gestion de couverture et d'erreurs que l'eclairage, via `IndicatorRaster`.
+- Aucun calcul sur les portions en transport. Ce contexte ne mesure pas la presence nocturne
+  observee ; la construction amont reste a documenter.
 
 ## Validation
 

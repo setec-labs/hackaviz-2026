@@ -5,8 +5,9 @@ interactive des trajets de nuit en Île-de-France, animés dans le temps et colo
 sentiment de sécurité.
 
 Par défaut, les **scénarios et leurs trajets proviennent du service routing** (`GET /scenarios`, port 8001)
-et l'**indice provient du service safety** (`POST /safety-index`, port 8002). L'indice est actuellement
-calculé à partir du seul éclairage nocturne. Sans service safety démarré, les trajets s'affichent en
+et l'**indice provient du service safety** (`POST /journey-safety`, port 8002) :
+éclairage et densité de population à pied/en attente, fréquentation estimée en transport.
+Sans service safety, les trajets s'affichent en
 « non disponible » ; utiliser `?source=mock&safetySource=mock` pour travailler entièrement sans backend.
 
 > L'indice affiché est un **indicateur**. Il ne mesure pas objectivement le danger d'un lieu. Les valeurs
@@ -96,15 +97,22 @@ Les valeurs par défaut peuvent aussi être définies avec `VITE_DATA_SOURCE`, `
   l'indicateur au point courant.
 - **Contrôleur de simulation** : cliquez sur son titre pour replier ou réafficher le panneau, sans arrêter
   la simulation ni le son.
+- **Pondération du trajet** : pour l'éclairage, la fréquentation et la densité de population,
+  choisir faible (rond rouge, importance 1),
+  normale (gris, 2) ou forte (vert, 3). Les importances sont normalisées pour que les poids
+  totalisent 100 % (un tiers chacun par défaut), puis transmis à safety.
+  Les pourcentages affichés sont arrondis. Les bulles d'arrivée et les scores globaux changent,
+  pas les couleurs locales. Un changement réévalue safety sans recharger les trajets routing.
 - **Options → ambiance sonore** : boucle de 41 secondes, activée au démarrage à 50 % du volume
   (0 % pour couper le son), indépendante de la pause et de la vitesse de simulation.
   Si le navigateur bloque la lecture automatique, « Son en attente » apparaît dans Options :
-  cliquez sur « Activer l'ambiance sonore » pour autoriser la lecture.
+  le son démarre à la première interaction (clic/touche), ou via « Activer l'ambiance sonore ».
+  Une désactivation explicite n'est jamais annulée par les interactions suivantes.
 - **Bulles d'arrivée (constellation)** : à la fin d'un trajet, une bulle lumineuse apparaît à la
   destination avec un anneau qui s'étend, puis reste affichée avec un halo scintillant. Sa **taille** suit
-  la population de la zone et sa **couleur** l'anxiété des 10 pires minutes du trajet : moyenne de
-  l'indicateur sur les 10 minutes les plus défavorables, consécutives ou non, n'importe où sur le trajet
-  (anxiété = 1 − indicateur). Chaque bulle est reliée à l'arrivée
+  la population de la zone et sa **couleur** le score global pondéré calculé par safety.
+  Les moyennes temporelles de l'éclairage, de la fréquentation et de la densité sont combinées selon les poids
+  du panneau. L'anxiété des 10 pires minutes reste un détail de l'infobulle. Chaque bulle est reliée à l'arrivée
   antérieure la plus proche, ce qui dessine une constellation. Le survol affiche la destination, l'heure,
   la population et l'indicateur.
 - **Options → tintement** : un tintement est joué à chaque apparition de bulle, plus grave pour les zones
@@ -145,7 +153,7 @@ ScenariosClient.listScenarios() ──► ScenarioSummary[] ──► marqueurs 
                                                               │ scénario sélectionné
 ScenariosClient.fetchScenarioTrips(id) ──► Trip[] ──┐         ▼
                                                     ├─► prepareDataset ─► RenderDataset ─► couches deck.gl
-SafetyIndexClient.fetchSafetyIndices(pts) ──────────┘                                         ▲
+SafetyIndexClient.fetchJourneySafety(trips, weights) ┘                                       ▲
                                                                    SimulationClock.onFrame ───┘
 ```
 
@@ -155,9 +163,10 @@ SafetyIndexClient.fetchSafetyIndices(pts) ──────────┘     
 - Les trajets de **plus de 2 h** sont jugés peu plausibles (un taxi aurait sans doute été pris,
   `src/domain/tripPlausibility.ts`) : pas de requête d'indice, tracé gris neutre atténué, bulle d'arrivée
   creuse sans halo, mention dans l'infobulle et la légende.
-- L'indice n'est demandé que pour les sommets des tronçons **à pied et d'attente** (`walk*`, `wait`) ;
-  les autres tronçons reçoivent la valeur neutre provisoire 0,5 (`src/data/safetySampling.ts`, TODO :
-  interroger safety autrement pour ces modes).
+- Les trajets plausibles sont envoyés avec leurs tronçons, identifiants GTFS, arrêts et horaires.
+  Safety applique la moyenne locale éclairage/densité à pied/en attente et la fréquentation en transport, sans valeur
+  neutre inventée. Une donnée attendue manquante reste `null`. Un indicateur sans portion
+  applicable est exclu du score global et les poids applicables sont renormalisés.
 
 ### Horloge et performance
 
@@ -201,10 +210,13 @@ Le choix entre mock et API se fait uniquement dans `src/api/index.ts` (`createDa
 pour les scénarios (`VITE_DATA_SOURCE` / `?source=`) et pour l'indice (`VITE_SAFETY_SOURCE` /
 `?safetySource=`). Aucun composant, couche ou hook n'a besoin d'être modifié.
 
-- **Indice (branché)** : `POST {VITE_SAFETY_API_URL}/safety-index` avec `{ "points": [...] }` →
-  `SafetyIndexResponseDto` (indices dans l'ordre des points, `value` entre 0 et 1 ou `null`), servi par
-  `services/safety`, qui autorise par CORS l'origine `http://localhost:5173`. Le client envoie des lots
-  de 5 000 points au plus.
+- **Indice (branché)** : `POST {VITE_SAFETY_API_URL}/journey-safety` avec
+  `{ "journeys": [...], "weights": {"lighting": 0.25, "ridership": 0.5, "population_density": 0.25} }`.
+  Chaque résultat contient `journey_id`, `values` (par sommet), `score` (global) et `indicators`.
+  Les scores sont dans `[0, 1]` ou `null`. Le client valide l'ordre, les identifiants et les tailles.
+  Lots de 100 trajets et 5 000 coordonnées au plus, sans découper un trajet ; un trajet dépassant
+  cette limite produit une erreur explicite. CORS autorise `http://localhost:5173`.
+  L'ancienne méthode `fetchSafetyIndices` reste disponible pour l'API historique.
 - **Scénarios (branché)** : `GET {VITE_TRIPS_API_URL}/scenarios` → `ScenarioSummaryDto[]`, puis
   `GET {VITE_TRIPS_API_URL}/scenarios/{id}` → `ScenarioDto` (trajets avec `coordinates` et `offsets_s`),
   servis par `services/routing` à partir des `journeys.json` du pipeline. Les DTO de `contracts.ts`

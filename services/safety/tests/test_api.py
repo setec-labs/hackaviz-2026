@@ -112,7 +112,10 @@ class ApiTests(unittest.TestCase):
     def test_lighting_metadata(self) -> None:
         response = self.client.get("/indicators")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual([item["id"] for item in response.json()], ["lighting"])
+        self.assertEqual(
+            [item["id"] for item in response.json()],
+            ["lighting", "population_density", "ridership"],
+        )
         self.assertTrue(response.json()[0]["name"])
         self.assertTrue(response.json()[0]["description"])
 
@@ -173,9 +176,12 @@ class ApiTests(unittest.TestCase):
     def test_empty_raster_setting_is_rejected(self) -> None:
         get_indicator_service.cache_clear()
         self.addCleanup(get_indicator_service.cache_clear)
-        with patch.dict(os.environ, {"SAFETY_LIGHTING_RASTER": " "}):
-            response = self.client.get("/indicators")
-        self.assertEqual(response.status_code, 503)
+        for setting in ("SAFETY_LIGHTING_RASTER", "SAFETY_POPULATION_DENSITY_RASTER"):
+            with self.subTest(setting=setting):
+                get_indicator_service.cache_clear()
+                with patch.dict(os.environ, {setting: " "}):
+                    response = self.client.get("/indicators")
+                self.assertEqual(response.status_code, 503)
 
     def test_cors_allows_the_frontend_dev_server(self) -> None:
         response = self.client.options("/safety-index", headers={

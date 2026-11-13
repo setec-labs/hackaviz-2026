@@ -37,16 +37,23 @@ sequenceDiagram
     U->>F: clic sur un point de départ
     F->>R: GET /scenarios/{id}
     R-->>F: trajets et tronçons
-    F->>F: sélection des sommets de marche et d'attente<br/>des trajets de moins de 2 h
-    F->>S: POST /safety-index (lots de 5 000 positions)
-    S-->>F: indice par position (ou null)
-    F->>F: couleurs, arrivées, 10 pires minutes
+    F->>F: sélection des trajets de moins de 2 h
+    F->>S: POST /journey-safety (trajets, contexte et poids)
+    S-->>F: indices locaux et score global pondéré (ou null)
+    F->>F: couleurs locales, bulles selon le score global
     F-->>U: animation
+    U->>F: modification des importances rouge/gris/vert
+    F->>S: POST /journey-safety (trajets en cache, nouveaux poids)
+    S-->>F: scores réévalués
 ```
 
 Les réponses sont validées à la réception (`api/validation.ts`) : une donnée mal formée produit une
 erreur explicite plutôt qu'un affichage faux. Si safety échoue, les trajets restent affichés et l'indice
 est « non disponible ».
+
+Le panneau transforme faible/normale/forte en importances 1/2/3, puis les normalise pour obtenir
+une somme de 1. Aucun calcul d'indicateur n'est déplacé dans le frontend. Chaque lot comprend
+au plus 100 trajets et 5 000 coordonnées, sans couper un trajet.
 
 ## Animation
 
