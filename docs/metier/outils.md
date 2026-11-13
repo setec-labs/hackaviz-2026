@@ -46,3 +46,12 @@ E-Toiles embarque également un outil de tracé rapide de lignes de bus, et des 
 
 Les outils embarqués dans E-Toiles ont déjà permis de proposer aux équipes d'Ile-de-France Mobilités un visualisateur en webservice des trous d'offre dans le réseau TC francilien : 
 ![Visualisateur web des trous d'offre franciliens mis à disposition des équipes en charge des TAD d'Ile-de-France Mobilités](../assets/E-Toiles_6.png)
+
+## SIGMAE
+
+<img width="649" height="283" alt="logo" src="https://github.com/user-attachments/assets/b93f5f32-bdea-4bc7-a5eb-88dd4da53597" />
+SIGMAE est une application développée par setec pour contrôler la qualité des données SIG et les mettre en conformité avec le cahier des charges d'un projet. Elle traite les formats Shapefile, File Geodatabase et GeoPackage.
+Le module de contrôle qualité compare chaque couche au modèle attendu : présence des champs, types et longueurs déclarées. Il signale les écarts avant toute livraison.
+Le module de mise en conformité corrige ensuite automatiquement les données : réparation des géométries, reprojection, découpage sur l'emprise et correction des champs non conformes. L'utilisateur suit le traitement en temps réel.
+L'application associe une interface web en R Shiny au moteur de géotraitement ArcGIS (arcpy). Elle est modulaire, ce qui permet d'ajouter de nouveaux contrôles, comme la vérification de la topologie, prévue prochainement.
+<img width="908" height="537" alt="image" src="https://github.com/user-attachments/assets/1336f9c5-c290-448e-ac9c-dfb8f10ff694" />
