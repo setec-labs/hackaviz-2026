@@ -14,6 +14,8 @@
   --color-highlight: #ffe08a;
   --color-vigilance: #ffbf47;
   --color-vigilance-high: #ff7a45;
+  --color-importance-low: #f87171;
+  --color-importance-high: #4ade80;
 
   --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", "Cascadia Mono", "Consolas", ui-monospace, monospace;

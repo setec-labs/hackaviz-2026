@@ -1,4 +1,5 @@
 import type { SafetyIndexClient, ScenariosClient } from "../api/clients";
+import type { JourneySafetyResultDto, SafetyWeights } from "../api/contracts";
 import { parseSafetyIndexResponse, parseScenarioListResponse, parseScenarioResponse } from "../api/validation";
 import type { GeoPoint, SafetyIndexValue, ScenarioSummary, Trip } from "../domain/types";
 import { hashString } from "./random";
@@ -112,5 +113,19 @@ export class MockSafetyIndexClient implements SafetyIndexClient {
       throw new Error("Simulated failure of the safety index service");
     }
     return parseSafetyIndexResponse(generateMockSafetyResponse(this.field, points), points.length);
+  }
+
+  async fetchJourneySafety(trips: Trip[], weights: SafetyWeights, signal?: AbortSignal): Promise<JourneySafetyResultDto[]> {
+    const values = await this.fetchSafetyIndices(
+      trips.flatMap((trip) => trip.path.map(([longitude, latitude]) => ({ longitude, latitude }))),
+      signal,
+    );
+    let cursor = 0;
+    return trips.map((trip) => {
+      const local = values.slice(cursor, cursor + trip.path.length);
+      cursor += trip.path.length;
+      // Synthetic components exercise the controls without pretending to model real transit.
+      return { journey_id: trip.id, values: local, score: 0.3 * weights.lighting + 0.7 * weights.ridership };
+    });
   }
 }

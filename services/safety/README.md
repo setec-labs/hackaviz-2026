@@ -62,6 +62,8 @@ Variables d'environnement :
 
 - `SAFETY_LIGHTING_RASTER` : chemin du raster d'éclairage (par défaut
   `src/safety/luminosite_log.tif`) ;
+- `SAFETY_RIDERSHIP_CSV` : chemin des estimations par arc (par défaut
+  `data/output/ridership/ridership_by_transit_arc.csv`, depuis la racine du dépôt) ;
 - `SAFETY_CORS_ORIGINS` : origines autorisées, séparées par des virgules (par
   défaut `http://localhost:5173,http://127.0.0.1:5173`, le serveur Vite).
 
@@ -69,7 +71,7 @@ Variables d'environnement :
 
 - `GET /indicators` retourne les métadonnées des indicateurs disponibles.
 - `POST /evaluate` reçoit `{"position": {"latitude": 48.8566, "longitude": 2.3522}}`
-  et retourne la position et les résultats de tous les indicateurs.
+  et retourne les indicateurs de position (éclairage). La fréquentation requiert un arc.
 - `POST /score` reçoit une position et une liste `weights` contenant des objets
   `{"indicator_id": "lighting", "weight": 1.0}`. Il retourne la position,
   les résultats des indicateurs demandés et leur moyenne pondérée.
@@ -77,7 +79,43 @@ Variables d'environnement :
   (5 000 points au plus) et retourne `{"indices": [{"latitude": ..., "longitude": ..., "value": ...}]}`
   dans l'ordre des points. `value` est la moyenne à poids égaux de tous les
   indicateurs, ou `null` si une donnée manque à cette position. C'est la route
-  utilisée par le frontend.
+  historique pour les seuls indicateurs de position ; elle reste compatible.
+- `POST /journey-safety` est la route utilisée par le frontend. Elle reçoit
+  `{"journeys": [...], "weights": {"lighting": 0.5, "ridership": 0.5}}`.
+  Les trajets utilisent le modèle partagé `Journey` de routing, sans duplication.
+  Un lot contient au plus 100 trajets et 5 000 coordonnées. Les poids sont dans
+  `[0, 1]`, de somme 1 (tolérance numérique `1e-9`), avec 50/50 par défaut.
+  La réponse contient `journeys` dans l'ordre demandé : `journey_id`, `values`
+  (un indice local par coordonnée), `score` (global, ou `null`) et `indicators`
+  (moyennes disponibles par indicateur), ainsi que les `weights` configurés.
+
+Exemple de résultat contextualisé :
+
+```json
+{
+  "journeys": [{
+    "journey_id": "j1",
+    "values": [0.2, 0.8],
+    "score": 0.65,
+    "indicators": [
+      {"indicator_id": "lighting", "value": 0.2},
+      {"indicator_id": "ridership", "value": 0.8}
+    ]
+  }],
+  "weights": {"lighting": 0.25, "ridership": 0.75}
+}
+```
+
+Les couleurs locales utilisent l'éclairage à pied/en attente, et la fréquentation
+en transport. Pour le score global, les valeurs locales sont intégrées dans le
+temps (interpolation linéaire entre sommets, prolongement aux limites du tronçon),
+puis moyennées par durée pour chaque indicateur. Ces deux moyennes sont combinées
+selon les poids configurés. Un indicateur sans portion applicable est exclu et
+les poids restants renormalisés. Une donnée attendue mais manquante rend le score
+global `null` si son poids est positif ; un poids nul ne bloque pas ce score.
+Les valeurs locales restent évaluées même à poids nul ; une source illisible
+provoque donc toujours une erreur 503. Sans durée positive ni poids applicable,
+le score est `null`. Les poids n'affectent pas les couleurs locales.
 
 Tous les résultats et le score global sont compris entre 0 et 1 : 0 représente
 la situation la moins favorable et 1 la plus favorable. Ces indicateurs ne
@@ -112,6 +150,21 @@ Ce seuil est un choix de modélisation, pas une mesure physique ni une preuve de
 Exemples : Châtelet ≈ 0,80, bois de Vincennes = 0 (valeur brute ≈ 18).
 Une position hors du raster ou sans donnée (nodata) n'a pas de score. Une valeur
 brute hors de [0, 100] est traitée comme une donnée invalide (503).
+
+## Indicateur `ridership`
+
+Le CSV de `services/ridership` est chargé une fois, au premier appel. Un arc est
+recherché par correspondance **exacte** de `gtfs_trip_id`, `from_stop`, `to_stop`,
+`start_time` et `end_time` (instants comparés en UTC). Aucun rapprochement spatial
+ni report d'une autre date n'est effectué. Arc inconnu : indice local `null`.
+
+Le champ `estimated_validations_per_service_adjusted` est déjà un score inversé
+entre 0 et 100 : 100 correspond à une faible fréquentation estimée. Le provider
+applique **`1 - valeur / 100`**, sans nouveau logarithme ni écrêtage. Une valeur
+vide, non finie, hors bornes, un schéma invalide ou des doublons contradictoires
+provoquent une erreur 503. Il s'agit de validations estimées par service, **pas
+d'une occupation observée**. Le sens favorable associé à la fréquentation est
+une hypothèse de modélisation, pas une preuve de sécurité.
 
 ## Tests
 

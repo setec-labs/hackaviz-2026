@@ -112,7 +112,7 @@ class ApiTests(unittest.TestCase):
     def test_lighting_metadata(self) -> None:
         response = self.client.get("/indicators")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual([item["id"] for item in response.json()], ["lighting"])
+        self.assertEqual([item["id"] for item in response.json()], ["lighting", "ridership"])
         self.assertTrue(response.json()[0]["name"])
         self.assertTrue(response.json()[0]["description"])
 

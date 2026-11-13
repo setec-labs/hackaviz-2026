@@ -15,6 +15,9 @@ export const palette = {
   highlight: "#FFE08A",
   vigilance: "#FFBF47",
   vigilanceHigh: "#FF7A45",
+  // Preference controls only: these colors express importance, never danger.
+  importanceLow: "#F87171",
+  importanceHigh: "#4ADE80",
 } as const;
 
 export type PaletteColor = keyof typeof palette;

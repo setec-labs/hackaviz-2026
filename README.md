@@ -2,7 +2,7 @@
 
 **Comment se vivent les trajets de nuit en transports en commun en Île-de-France ?** Cette
 visualisation cartographique anime les trajets depuis différents lieux et heures de départ, et met en
-regard leur durée, les portions à pied ou en attente et un indicateur d'éclairage nocturne.
+regard leur durée, les portions à pied ou en attente, l'éclairage nocturne et la fréquentation estimée.
 
 > **Prototype de hackathon.** Réalisé en deux semaines par l'équipe setec pour le
 > [Hackaviz Mobilités 2026](https://github.com/hackathons-mobilites/hackaviz_2026), organisé par
@@ -33,12 +33,14 @@ informations sans prétendre prédire le ressenti individuel ni mesurer objectiv
 L'application présente plusieurs scénarios de départ nocturnes. Pour chaque scénario, elle anime les
 trajets calculés vers les mairies des communes d'Île-de-France (Paris est représentée par ses
 arrondissements). Les bulles d'arrivée représentent la population de la destination ; leur couleur
-résume l'indice des dix minutes les plus défavorables du trajet.
+résume un score global pondéré du trajet, configurable dans l'interface.
 
 Les trajets de plus de deux heures sont affichés en gris comme peu plausibles : une personne aurait
-probablement choisi un autre mode de déplacement. L'indice est calculé à partir de l'éclairage nocturne,
-uniquement sur les portions de marche et d'attente. Il est normalisé entre 0 et 1, où 1 indique la
-situation la plus favorable. Les autres portions reçoivent provisoirement une valeur neutre de 0,5.
+probablement choisi un autre mode de déplacement. Les indices locaux utilisent l'éclairage nocturne
+sur les portions de marche et d'attente, et la fréquentation estimée sur les arcs en transport.
+Ils sont normalisés entre 0 et 1, où 1 indique le contexte le plus favorable selon ces hypothèses.
+Le score global combine les moyennes temporelles de ces deux indicateurs. Le panneau rouge/gris/vert
+règle leur importance ; les poids totalisent 100 %. Une donnée manquante reste indisponible.
 
 Les principales données mobilisées sont les horaires théoriques GTFS d'Île-de-France Mobilités, le réseau
 piéton issu d'OpenStreetMap, un raster de luminosité nocturne et des données de population. Les scénarios
@@ -64,7 +66,7 @@ Les prochaines étapes pourraient être :
 
 - compléter l'indice avec d'autres facteurs de l'environnement nocturne, sans les confondre avec une
   mesure objective de sécurité ;
-- remplacer la valeur neutre provisoire des portions en véhicule par des indicateurs adaptés ;
+- confronter les estimations de fréquentation aux données observées et aux ressentis ;
 - proposer des alternatives aux trajets jugés peu plausibles ;
 - implémenter le rapport par scénario et valider les choix de visualisation avec des usagers ;
 - documenter les données et hypothèses avec les partenaires, puis mesurer les performances sur des

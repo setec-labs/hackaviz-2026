@@ -19,6 +19,16 @@ export interface ScenarioSummary {
 }
 
 /** Domain journey with aligned path, timestamps and per-point modes. */
+export interface TripLeg {
+  mode: string;
+  startTimeMs: number;
+  endTimeMs: number;
+  fromStop: string;
+  toStop: string;
+  gtfsTripId: string | null;
+  pointRange: [number, number];
+}
+
 export interface Trip {
   id: string;
   /** Destination name, or null if absent. */
@@ -29,6 +39,8 @@ export interface Trip {
   mode: string | null;
   /** Mode of the leg containing each position, such as `walk_access`, `wait`, or `transit`. */
   pointModes: string[];
+  /** Validated routing context required to match transit estimates. */
+  legs?: TripLeg[];
   /** Start and end times in UTC epoch milliseconds. */
   startTimeMs: number;
   endTimeMs: number;

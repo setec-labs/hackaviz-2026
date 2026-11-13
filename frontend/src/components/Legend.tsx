@@ -21,7 +21,7 @@ export function Legend({ safetySimulated }: { safetySimulated: boolean }) {
   return (
     <details
       open
-      className="group pointer-events-auto w-64 rounded-xl border border-surface-raised/70 bg-surface/85 text-ink shadow-xl shadow-night/60 backdrop-blur-md"
+      className="group pointer-events-auto w-64 shrink-0 rounded-xl border border-surface-raised/70 bg-surface/85 text-ink shadow-xl shadow-night/60 backdrop-blur-md"
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-3 py-2 focus-visible:outline-2 focus-visible:outline-selection">
         <span className="text-xs font-semibold tracking-wide uppercase">Sentiment de sécurité</span>
@@ -52,9 +52,9 @@ export function Legend({ safetySimulated }: { safetySimulated: boolean }) {
         <p className="mt-2 text-[11px] leading-snug text-ink-muted">
           {safetySimulated
             ? "Indice simulé, sans lien avec des lieux réels."
-            : "Indice actuellement calculé à partir de l'éclairage nocturne uniquement."}{" "}
-          Il n'est évalué que sur les tronçons à pied et d'attente ; les autres tronçons reçoivent une
-          valeur neutre provisoire de 0,5.
+            : "Éclairage à pied et en attente ; fréquentation estimée dans les transports."}{" "}
+          Plus l'indice est élevé, plus le contexte est favorable selon ces hypothèses.
+          Une donnée manquante reste indisponible.
         </p>
         <div className="mt-2 flex items-start gap-2 text-[11px] leading-snug text-ink-muted">
           <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center" aria-hidden="true">
@@ -62,8 +62,7 @@ export function Legend({ safetySimulated }: { safetySimulated: boolean }) {
           </span>
           <span>
             <span className="text-ink">Bulles d'arrivée</span> : taille proportionnelle à la population de la
-            zone ; couleur selon l'anxiété des 10 pires minutes du trajet             (indicateur moyen sur les
-                        10 minutes les plus défavorables, consécutives ou non).
+            zone ; couleur selon le score global pondéré du trajet, réglable dans le panneau.
           </span>
         </div>
         <div className="mt-2 flex items-start gap-2 text-[11px] leading-snug text-ink-muted">

@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Trip } from "../domain/types";
-import {
-  collectPedestrianPoints,
-  isPedestrianMode,
-  mergeSafetyValues,
-  NON_PEDESTRIAN_SAFETY_VALUE,
-} from "./safetySampling";
+import { isImplausible, mergeJourneySafety } from "./safetySampling";
 
 const trips: Trip[] = [
   {
@@ -42,33 +37,27 @@ const trips: Trip[] = [
 ];
 
 describe("safety sampling", () => {
-  it("only treats walking and waiting as pedestrian modes", () => {
-    for (const mode of ["walk", "walk_access", "walk_egress", "walk_transfer", "walk_direct", "wait"]) {
-      expect(isPedestrianMode(mode)).toBe(true);
-    }
-    for (const mode of ["transit", "bike", "night_bus", "car", ""]) {
-      expect(isPedestrianMode(mode)).toBe(false);
-    }
-  });
-
-  it("requests the safety index for walking and waiting points only", () => {
-    expect(collectPedestrianPoints(trips)).toEqual([
-      { longitude: 2.0, latitude: 48.0 },
-      { longitude: 2.1, latitude: 48.1 },
-      { longitude: 2.4, latitude: 48.4 },
+  it("aligns contextual local values and global scores without replacing missing data", () => {
+    const merged = mergeJourneySafety(trips, [
+      { journey_id: "b", values: [0.8, 0.8], score: 0.8 },
+      { journey_id: "a", values: [0.9, null, 0.6, 0.6, 0.1], score: null },
     ]);
+    expect(merged.values).toEqual([0.9, null, 0.6, 0.6, 0.1, 0.8, 0.8]);
+    expect(merged.scores.get("a")).toBeNull();
+    expect(merged.scores.get("b")).toBe(0.8);
   });
 
   it("skips trips longer than 2 hours", () => {
     const long: Trip = { ...trips[0]!, id: "long", timestampsMs: [0, 1000, 2000, 3000, 7_201_000] };
-    expect(collectPedestrianPoints([long])).toEqual([]);
-    expect(mergeSafetyValues([long], [])).toEqual([null, null, null, null, null]);
+    expect(isImplausible(long)).toBe(true);
+    expect(mergeJourneySafety([long], []).values).toEqual([null, null, null, null, null]);
+    const boundary = { ...long, timestampsMs: [0, 1000, 2000, 3000, 7_200_000] };
+    expect(isImplausible(boundary)).toBe(false);
   });
 
-  it("uses the neutral placeholder elsewhere and keeps failures explicit", () => {
-    const neutral = NON_PEDESTRIAN_SAFETY_VALUE;
-    expect(neutral).toBe(0.5);
-    expect(mergeSafetyValues(trips, [0.9, null, 0.1])).toEqual([0.9, null, neutral, neutral, 0.1, neutral, neutral]);
-    expect(mergeSafetyValues(trips, null)).toEqual([null, null, neutral, neutral, null, neutral, neutral]);
+  it("keeps all modes unavailable after a safety service failure, without a 0.5 placeholder", () => {
+    const merged = mergeJourneySafety(trips, []);
+    expect(merged.values).toEqual([null, null, null, null, null, null, null]);
+    expect([...merged.scores.values()]).toEqual([null, null]);
   });
 });

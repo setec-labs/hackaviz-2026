@@ -89,6 +89,15 @@ describe("buildArrivals", () => {
     expect(arrival).toMatchObject({ implausible: true, worstMinutesSafety: null, color: rgba("neutral") });
   });
 
+  it("colors contextual arrivals by the server's weighted score, not the local worst minutes", () => {
+    const trip = source("weighted", 600, [2.5, 48.9]);
+    const [arrival] = buildArrivals([{ ...trip, globalSafety: 0.25 }]);
+    expect(arrival?.globalSafety).toBe(0.25);
+    expect(arrival?.color).toEqual(safetyIndexColor(0.25));
+    const [missing] = buildArrivals([{ ...trip, globalSafety: null }]);
+    expect(missing?.color).toEqual(safetyIndexColor(null));
+  });
+
   it("links each star to its nearest earlier neighbour", () => {
     const arrivals = buildArrivals([
       source("a", 100, [2.0, 48.0]),

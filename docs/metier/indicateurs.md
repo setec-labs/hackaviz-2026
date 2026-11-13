@@ -17,8 +17,9 @@ flowchart LR
     D --> E[Score entre 0 et 1]
 ```
 
-L'**indice** affiché sur la carte est la moyenne, à poids égaux, des scores disponibles. Aujourd'hui, seul
-l'éclairage est implémenté : l'indice est donc égal au score d'éclairage.
+L'**indice local** représente l'indicateur applicable au tronçon : éclairage à pied/en attente,
+fréquentation estimée en transport. Le **score global** combine les deux indicateurs par une moyenne
+pondérée configurable. Ce sont deux niveaux de lecture distincts.
 
 ## Éclairage nocturne
 
@@ -46,14 +47,36 @@ disponible ».
 
 ## Portions évaluées
 
-L'indice n'est demandé **que sur les portions à pied et d'attente** (marche d'accès, correspondance,
-marche finale ou directe, attente). C'est là que la personne est exposée à son environnement.
+L'éclairage s'applique aux portions à pied et d'attente (marche d'accès, correspondance,
+marche finale ou directe, attente).
 
-Dans un véhicule, la valeur est fixée provisoirement à **0,5**, une valeur neutre.
+En transport, l'indice utilise le champ `estimated_validations_per_service_adjusted` du fichier
+`data/output/ridership/ridership_by_transit_arc.csv`. Ce champ est déjà un score inversé de 0 à 100 :
+100 représente la fréquentation estimée la plus faible. Safety calcule donc **`1 − valeur / 100`**.
+Une fréquentation plus élevée est considérée ici comme plus favorable : c'est une hypothèse,
+pas une mesure objective de sécurité ni une mesure d'occupation des véhicules.
 
-!!! todo "À faire"
-    Évaluer le sentiment de sécurité **à bord** avec d'autres indicateurs (affluence, type de véhicule,
-    présence de personnel…) plutôt que la valeur provisoire de 0,5.
+L'arc est identifié par le trajet GTFS, les deux arrêts et les instants de début/fin. Un arc inconnu
+reste sans donnée ; aucun rapprochement géographique ni remplacement par 0,5 n'est effectué.
+Les estimations incluent des imputations documentées dans `services/ridership/README.md`.
+
+## Score global pondéré
+
+Chaque indicateur est moyenné dans le temps sur ses portions applicables. L'éclairage entre sommets
+est interpolé linéairement, avec prolongement des valeurs aux limites de chaque tronçon.
+La fréquentation est constante sur un arc. Ces moyennes sont ensuite combinées :
+
+`score = poids_éclairage × moyenne_éclairage + poids_fréquentation × moyenne_fréquentation`
+
+Les poids totalisent 1. Le panneau propose faible (rouge, importance 1), normale (gris, 2) et forte
+(vert, 3). Les importances sont divisées par leur somme : faible/forte donne 25 %/75 %, normale/normale
+donne 50 %/50 %. Ces couleurs représentent une préférence, jamais un niveau de danger.
+
+Un indicateur sans portion applicable est exclu et les poids restants sont renormalisés.
+Une donnée attendue mais manquante rend le score global indisponible si son poids est positif.
+Sans durée positive ni poids applicable, le score est indisponible.
+Les poids sont transmis à l'API, qui calcule le score ; le frontend ne recalcule pas les indicateurs.
+Les couleurs locales ne changent pas avec les poids ; les bulles d'arrivée représentent le score global.
 
 ## Seuils de lecture
 
@@ -68,8 +91,8 @@ La légende découpe l'indice en quatre niveaux. Ce sont des **choix de visualis
 
 ## Anxiété des 10 pires minutes
 
-La couleur d'une bulle d'arrivée résume **tout le trajet** en une valeur : l'anxiété de ses **10 minutes
-les plus défavorables**, consécutives ou non.
+L'infobulle conserve une lecture complémentaire : l'anxiété des **10 minutes les plus défavorables**,
+consécutives ou non. Ce détail, distinct du score global pondéré, ne pilote plus la couleur des bulles.
 
 1. Le trajet est échantillonné toutes les 15 secondes.
 2. Les 40 échantillons les plus défavorables (10 minutes) sont retenus, où qu'ils soient sur le trajet.
