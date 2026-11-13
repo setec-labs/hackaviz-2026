@@ -1,5 +1,5 @@
 [project]
-site_name = "Trajets de nuit · Île-de-France"
+site_name = "Noctambulle · Trajets de nuit en Île-de-France"
 site_description = "Documentation du prototype setec pour le Hackaviz Mobilités 2026 : cartographie des trajets de nuit et indicateurs liés au sentiment de sécurité."
 site_author = "Équipe setec – Hackaviz Mobilités 2026"
 copyright = "Prototype développé en deux semaines pour le Hackaviz Mobilités 2026 · Licence MIT"
@@ -20,6 +20,7 @@ nav = [
     "metier/scenarios.md",
     "metier/indicateurs.md",
     "metier/limites.md",
+    { "Savoir-faire et outils setec" = "metier/outils.md" },
   ] },
   { "Architecture" = [
     "architecture/index.md",
@@ -70,12 +71,14 @@ def_list = {}
 footnotes = {}
 md_in_html = {}
 toc.permalink = true
-pymdownx.details = {}
-pymdownx.highlight.anchor_linenums = true
-pymdownx.inlinehilite = {}
-pymdownx.keys = {}
-pymdownx.superfences.custom_fences = [
+"pymdownx.details" = {}
+"pymdownx.highlight" = { anchor_linenums = true }
+"pymdownx.inlinehilite" = {}
+"pymdownx.keys" = {}
+"pymdownx.tabbed" = { alternate_style = true }
+"pymdownx.tasklist" = { custom_checkbox = true }
+
+[project.markdown_extensions."pymdownx.superfences"]
+custom_fences = [
   { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
 ]
-pymdownx.tabbed.alternate_style = true
-pymdownx.tasklist.custom_checkbox = true

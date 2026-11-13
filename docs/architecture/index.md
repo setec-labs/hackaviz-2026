@@ -15,7 +15,11 @@ flowchart LR
         PIPE --> J[(journeys.json)]
         J --> OPT[optimize-scenarios]
         OPT --> JM[(journeys.min.json)]
-        RAS[(Raster d'éclairage<br/>luminosite_log.tif)]
+        VAL[(Validations et profils horaires)] --> EST[Estimation de fréquentation]
+        GTFS --> EST
+        J --> EST
+        EST --> CSV[(ridership_by_transit_arc.csv)]
+        RAS[(Rasters éclairage et densité<br/>luminosite_log.tif<br/>PresenceHum_IDF_OK.tif)]
     end
 
     subgraph Services["Services"]
@@ -27,8 +31,9 @@ flowchart LR
 
     JM --> R
     RAS --> S
+    CSV --> S
     F -- "scénarios et trajets" --> R
-    F -- "indice aux points<br/>de marche et d'attente" --> S
+    F -- "trajets, tronçons et poids<br/>POST /journey-safety" --> S
 ```
 
 ## Les briques
@@ -37,6 +42,7 @@ flowchart LR
 |---|---|---|
 | `frontend/` | carte, animation, légende, son | [Frontend](frontend.md) |
 | `services/routing/` | calcul hors ligne des itinéraires et API des scénarios | [Services](services.md) |
+| `services/ridership/` | estimation hors ligne de la fréquentation par arc ; pas de serveur HTTP | [Données](donnees.md#frequentation-par-arc) |
 | `services/safety/` | indicateurs d'environnement nocturne normalisés | [Services](services.md) |
 | `src/hackaviz_2026/` | modèles Pydantic partagés entre les services | [Services](services.md#modeles-partages) |
 | `scripts/` | lancement de tous les services en une commande | [Développement](developpement.md) |
@@ -49,7 +55,17 @@ flowchart LR
   sont portés par des personnes différentes.
 - **Contrats Pydantic partagés.** Les modèles échangés sont définis une seule fois dans
   `src/hackaviz_2026/`, et validés côté frontend à la réception.
-- **Le frontend choisit, safety évalue.** Le frontend sélectionne les points à évaluer (sommets des
-  portions de marche et d'attente des trajets plausibles) et les envoie à safety par lots de 5 000.
+- **Le frontend choisit, safety évalue.** Le frontend écarte les trajets de plus de deux heures
+  de l'évaluation, puis transmet les trajets plausibles avec leurs tronçons, horaires et poids.
+  Chaque lot contient au plus 100 trajets et 5 000 coordonnées. Safety applique les indicateurs
+  dans leur contexte et calcule le score global ; le frontend ne le recalcule pas.
+- **Deux niveaux de lecture.** Les couleurs locales décrivent le contexte de chaque tronçon.
+  Les bulles d'arrivée utilisent le score global pondéré, indépendamment de leur taille
+  qui représente la population de destination.
 - **Mode démonstration.** Le frontend fonctionne sans backend (`?source=mock`), ce qui a permis de
   développer la visualisation avant que les données soient prêtes.
+
+Le fonctionnement des indicateurs et leurs limites sont détaillés dans les
+[choix métier](../metier/indicateurs.md). Les outils internes présentés par l'équipe
+dans [Optiflow, Constellations, E-Toiles et SIGMAE](../metier/outils.md) sont des éléments
+de contexte, pas des dépendances de cette application.

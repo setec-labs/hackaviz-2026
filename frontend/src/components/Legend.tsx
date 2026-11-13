@@ -52,7 +52,7 @@ export function Legend({ safetySimulated }: { safetySimulated: boolean }) {
         <p className="mt-2 text-[11px] leading-snug text-ink-muted">
           {safetySimulated
             ? "Indice simulé, sans lien avec des lieux réels."
-            : "Éclairage à pied et en attente ; fréquentation estimée dans les transports."}{" "}
+            : "Éclairage et densité de population à pied et en attente ; fréquentation estimée dans les transports."}{" "}
           Plus l'indice est élevé, plus le contexte est favorable selon ces hypothèses.
           Une donnée manquante reste indisponible.
         </p>

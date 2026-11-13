@@ -156,7 +156,7 @@ et les choix de visualisation doivent être discutés avec les usagers et les pa
 
 - [Git](https://git-scm.com/) et [Git LFS](https://git-lfs.com/) pour les fichiers de données volumineux ;
 - [uv](https://docs.astral.sh/uv/) et Python 3.14 ;
-- Node.js 20+ et npm pour le frontend.
+- Node.js 20.x à partir de 20.19, ou 22.12+, et npm pour le frontend.
 
 ### Démarrer l'application
 
@@ -165,7 +165,7 @@ Depuis la branche contenant cette version du prototype :
 ```text
 git clone https://github.com/setec-labs/hackaviz-2026.git
 cd hackaviz-2026
-git switch florian
+git switch develop
 git lfs install
 git lfs pull
 uv sync --all-packages
@@ -182,6 +182,8 @@ avec `Ctrl+C`.
 Le guide d'installation complet, les conseils de dépannage et le mode de démonstration sans backend
 sont dans [la documentation utilisateur](docs/utilisateur/index.md). Pour les commandes de tests et de
 développement, consulter [CONTRIBUTING.md](CONTRIBUTING.md).
+Les [captures de l'interface](docs/utilisateur/carte.md) situent le scénario, la pondération
+des trois indicateurs et les commandes de simulation et de son.
 
 ### Recalculer les scénarios et les estimations de fréquentation
 

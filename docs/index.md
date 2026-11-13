@@ -21,10 +21,14 @@ Le prototype propose une **cartographie animée** des trajets de nuit en transpo
 - **le temps de parcours** vers chaque commune francilienne ;
 - **l'accessibilité** : marche, attente, correspondances, et trajets si longs qu'ils deviennent
   irréalistes ;
-- **l'environnement nocturne** traversé à pied ou en attente, à travers un indicateur d'éclairage ;
+- **le contexte du trajet** : éclairage et densité à pied/en attente, fréquentation estimée en transport ;
 - **le volume de population** concerné à l'arrivée.
 
 ![Carte des trajets de nuit au départ de Pigalle à 2 h](assets/carte.png)
+
+L'[interface actuelle](utilisateur/carte.md) propose un panneau de pondération
+pour combiner les trois indicateurs. Les captures détaillées montrent les commandes
+de scénario, de simulation et de son.
 
 !!! info "Un indicateur n'est pas une mesure du danger"
     L'indice affiché est un **indicateur pouvant contribuer au sentiment de sécurité**. Un faible

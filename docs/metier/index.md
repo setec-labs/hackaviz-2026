@@ -14,7 +14,7 @@ Le prototype croise trois dimensions sur une même carte :
 |---|---|---|
 | Temps de parcours | animation des trajets, heure d'arrivée | [Scénarios et trajets](scenarios.md) |
 | Accessibilité | marche, attente, correspondances, trajets irréalistes | [Scénarios et trajets](scenarios.md) |
-| Environnement nocturne | éclairage à pied/en attente, fréquentation estimée en transport et score pondéré | [Indicateurs](indicateurs.md) |
+| Environnement nocturne | éclairage et densité à pied/en attente, fréquentation estimée en transport et score pondéré | [Indicateurs](indicateurs.md) |
 
 ## Principes
 

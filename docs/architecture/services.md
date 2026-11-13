@@ -36,7 +36,9 @@ instantanée.
 
 ## Safety
 
-`services/safety/` évalue des indicateurs d'environnement nocturne en un point.
+`services/safety/` évalue des indicateurs d'environnement nocturne en une position ou
+dans le contexte d'un trajet. Les providers sont créés par une dépendance FastAPI
+mise en cache ; les deux rasters et le CSV sont chargés au premier usage, puis réutilisés.
 
 | Route | Rôle |
 |---|---|
@@ -81,6 +83,55 @@ Le service retourne les valeurs locales par sommet et les moyennes temporelles p
 puis leur combinaison pondérée. L'indice local piéton est la moyenne à poids égaux
 éclairage/densité, indépendante des préférences. Les indicateurs sans portion applicable sont exclus avec
 renormalisation ; une donnée attendue manquante n'est jamais ignorée.
+
+### Contrat de calcul d'un trajet
+
+Le frontend transmet les `Journey` reçus de routing, sans supprimer leurs tronçons :
+
+```json
+{
+  "journeys": ["… objets Journey complets …"],
+  "weights": {"lighting": 0.25, "ridership": 0.5, "population_density": 0.25}
+}
+```
+
+Cette illustration abrège les trajets ; un élément réel contient notamment `journey_id`,
+`destination`, `start_time`, `end_time`, `legs`, `coordinates` et `offsets_s`.
+Les schémas exécutables sont disponibles sur `/docs` et `/openapi.json`.
+
+| Champ de réponse | Contrat |
+|---|---|
+| `journeys[].journey_id` | identifiant du trajet, dans l'ordre de la requête |
+| `journeys[].values` | un score `[0, 1]` ou `null` par coordonnée, même ordre et même longueur |
+| `journeys[].indicators` | moyennes temporelles disponibles de chaque indicateur |
+| `journeys[].score` | moyenne pondérée globale dans `[0, 1]`, ou `null` |
+| `weights` | trois poids effectifs, finis, positifs ou nuls, de somme 1 |
+
+Une moyenne temporelle est calculée séparément pour chaque indicateur sur ses seules
+portions applicables : éclairage et densité sur marche/attente, fréquentation sur transport.
+Les échantillons des rasters sont interpolés dans le temps, avec prolongement aux limites
+des tronçons ; la fréquentation est constante sur un arc. Les moyennes des tronçons sont
+ensuite combinées selon leur durée, puis selon les poids configurés.
+
+Les couleurs locales restent indépendantes de ces poids. Une source illisible provoque
+une erreur 503 même lorsque son poids est nul : le service ne masque pas une source invalide.
+Sans durée positive ni poids applicable, le score global est `null`.
+
+### Configuration des services
+
+| Variable | Rôle / valeur par défaut |
+|---|---|
+| `ROUTING_SCENARIOS_DIR` | `data/output/scenarios`, relatif au répertoire de lancement |
+| `ROUTING_CORS_ORIGINS` | origines web autorisées, séparées par des virgules |
+| `SAFETY_LIGHTING_RASTER` | `services/safety/src/safety/luminosite_log.tif` |
+| `SAFETY_POPULATION_DENSITY_RASTER` | `services/safety/src/safety/PresenceHum_IDF_OK.tif` |
+| `SAFETY_RIDERSHIP_CSV` | `data/output/ridership/ridership_by_transit_arc.csv` |
+| `SAFETY_CORS_ORIGINS` | origines web autorisées, séparées par des virgules |
+
+Les deux configurations CORS autorisent par défaut `http://localhost:5173` et
+`http://127.0.0.1:5173`. Si le port ou le domaine du frontend change, adapter les
+origines des **deux** services. Les chemins safety par défaut sont résolus depuis
+le code installé ; une variable de chemin explicitement vide est une erreur 503.
 
 !!! tip "Ajouter un indicateur"
     Créer un provider qui renvoie un score dans [0, 1] (1 = le plus favorable), l'enregistrer dans

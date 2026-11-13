@@ -16,6 +16,18 @@ volume de données :
 
 Les paramètres se combinent : `?source=mock&safetySource=mock&trips=300`.
 
+La pondération n'est pas un paramètre d'URL : elle se règle dans le panneau en haut
+à droite et est transmise dans `weights` à l'API safety. Les choix sont réinitialisés
+à un tiers chacun lors du rechargement de la page.
+
+## Adresses des API
+
+Pour changer les adresses des services, copier `frontend/.env.example` vers
+`frontend/.env.local`, adapter `VITE_TRIPS_API_URL` et `VITE_SAFETY_API_URL`,
+puis redémarrer Vite. Les valeurs par défaut sont `http://localhost:8001` et
+`http://localhost:8002`. Si l'origine de l'interface change, mettre aussi à jour
+les autorisations CORS des deux services (voir [Services](../architecture/services.md#configuration-des-services)).
+
 !!! warning "Données simulées"
     Les données `mock` sont synthétiques et sans lien avec des lieux réels. Un badge le signale à l'écran.
 

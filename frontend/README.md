@@ -13,6 +13,15 @@ Sans service safety, les trajets s'affichent en
 > L'indice affiché est un **indicateur**. Il ne mesure pas objectivement le danger d'un lieu. Les valeurs
 > simulées sont synthétiques et sans lien avec des lieux réels.
 
+## Aperçu de l'interface
+
+![Interface avec scénario, pondération à trois indicateurs et simulation](../docs/assets/interface-noctambulle.png)
+
+Capture du scénario précalculé `AccorHotel-Arena-0h`, avec les deux API réelles,
+en pause à 01:35. Le bandeau d'indisponibilité du fond de carte est conservé :
+il reflète l'état de la source cartographique au moment de la capture.
+Le [guide illustré](../docs/utilisateur/carte.md) détaille les panneaux et leur lecture.
+
 ## Stack
 
 | Rôle | Outil |
@@ -26,14 +35,14 @@ Sans service safety, les trajets s'affichent en
 
 ## Installation
 
-Prérequis : Node.js 20+ (npm est fourni avec Node).
+Prérequis : Node.js 20.x à partir de 20.19, ou 22.12+ (npm est fourni avec Node).
 
 uv gère les dépendances Python du monorepo mais pas les paquets JavaScript : les dépendances du frontend sont
 donc gérées avec **npm**, dans ce dossier. Le fichier `package-lock.json` est versionné.
 
 ```powershell
 cd frontend
-npm install
+npm ci
 ```
 
 Pour ajouter une bibliothèque JavaScript :

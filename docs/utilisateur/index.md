@@ -8,7 +8,7 @@ Cette page explique comment lancer l'application sur un poste. Pour la lecture d
 | Outil | Rôle | Installation |
 |---|---|---|
 | [uv](https://docs.astral.sh/uv/) | Python et dépendances des services | [Instructions d'installation](https://docs.astral.sh/uv/getting-started/installation/) ; sous Windows : `winget install --id=astral-sh.uv -e` |
-| [Node.js](https://nodejs.org/) 20+ | interface web | installeur officiel |
+| [Node.js](https://nodejs.org/) 20.x à partir de 20.19, ou 22.12+ | interface web | installeur officiel ; choisir une version LTS compatible |
 | [Git](https://git-scm.com/) et [Git LFS](https://git-lfs.com/) | dépôt et fichiers de scénarios volumineux | installer Git et Git LFS, puis exécuter `git lfs install` |
 | Navigateur récent | Chrome, Edge ou Firefox, avec accélération matérielle | — |
 
@@ -46,7 +46,7 @@ Depuis la racine du dépôt :
 ```text
 git lfs pull                     # récupère les scénarios (~150 Mo chacun)
 uv sync --all-packages           # dépendances Python de tous les services
-cd frontend; npm install; cd ..  # dépendances de l'interface
+cd frontend; npm ci; cd ..       # dépendances de l'interface depuis le lockfile
 ```
 
 ## Lancement
@@ -91,3 +91,4 @@ l'écran. Voir [Paramètres et performances](parametres.md).
 | Trajets en « non disponible » | service safety arrêté | relancer `run_services.py` |
 | Liste de scénarios vide ou erreur 503 | fichiers LFS non téléchargés | `git lfs pull` |
 | Animation saccadée | pas d'accélération matérielle | voir [Paramètres et performances](parametres.md) |
+| Panneau de pondération absent | ancienne copie du code ou panneau replié | récupérer la branche à jour, relancer le frontend, actualiser la page ; chercher « Pondération du trajet » en haut à droite |
